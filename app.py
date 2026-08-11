@@ -1876,7 +1876,7 @@ if st.session_state.get("app_page", "landing") != "workspace":
     if LOGO_PATH.exists():
         logo_left, logo_right = st.columns([0.16, 0.84], vertical_alignment="center")
         with logo_left:
-            st.image(str(UI_ICON_PATH), width=72)
+            st.image(str(UI_ICON_PATH), width=125)
         with logo_right:
             st.markdown(
                 '<div style="font-size:1.15rem;font-weight:750;opacity:.7;">Classify • Prepare • Validate</div>',
