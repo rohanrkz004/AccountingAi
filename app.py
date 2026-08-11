@@ -319,7 +319,7 @@ def make_schedule3_excel(
     cover["A1"].font = Font(size=20, bold=True, color="FFFFFF")
     cover["A1"].fill = PatternFill("solid", fgColor="17365D")
     cover.merge_cells("A1:D2")
-    cover["A4"] = "Accounting AI — Schedule III-style Financial Statements"
+    cover["A4"] = "Accountra — Schedule III-style Financial Statements"
     cover["A4"].font = Font(size=14, bold=True)
     cover["A5"] = f"Reporting date: {reporting_date.strftime('%d %B %Y')}"
     cover["A6"] = f"CIN: {cin}" if cin else "CIN: Not provided"
@@ -1570,7 +1570,7 @@ def clear_accounting_session():
 # =========================================================
 
 st.set_page_config(
-    page_title="Accounting AI",
+    page_title="Accountra",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -1730,7 +1730,7 @@ st.markdown(
 st.markdown(
     """
     <div class="app-hero">
-        <h1>📊 Accounting AI</h1>
+        <h1>📊 Accountra</h1>
         <p>Trial Balance → AI classification → Schedule III-style financial statements → validation</p>
     </div>
     """,
@@ -1786,6 +1786,8 @@ with st.sidebar:
         "These details are used for the report heading and exports."
     )
 
+    st.info("💬 Feedback & bug reporting is available at the bottom of the page.")
+
     st.divider()
     st.markdown("### Workflow")
     st.markdown(
@@ -1805,29 +1807,47 @@ with st.sidebar:
 
 st.markdown("## 1️⃣ Choose how you want to start")
 
-input_mode = st.radio(
-    "",
-    [
-        "📊 I have a Trial Balance",
-        "🤖 I don't have a Trial Balance",
-    ],
-    horizontal=True,
-    key="input_mode",
-)
-
-# ---------------------------------------------------------
-# PATH A — EXISTING TRIAL BALANCE WORKFLOW
-# ---------------------------------------------------------
+input_mode = "📊 I have a Trial Balance"
 
 source_df = None
 source_ready = False
 source_is_generated = False
 
-if input_mode == "📊 I have a Trial Balance":
+st.caption(
+    "Upload an Excel or CSV Trial Balance containing Account, Debit and Credit columns."
+)
 
-    st.caption(
-        "Upload an Excel or CSV Trial Balance containing Account, Debit and Credit columns."
+tb_col, soon_col = st.columns([1.45, 1])
+
+with tb_col:
+    st.markdown(
+        """
+        <div class="section-card">
+            <div class="fs-title">📊 I have a Trial Balance</div>
+            <div class="fs-subtitle">
+                Upload your Trial Balance and turn it into validated financial statements.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+
+with soon_col:
+    st.markdown(
+        """
+        <div class="section-card">
+            <div class="fs-title">🤖 Don't have a Trial Balance?</div>
+            <div class="fs-subtitle">
+                This option is coming soon.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# ---------------------------------------------------------
+# PATH A — EXISTING TRIAL BALANCE WORKFLOW
+# ---------------------------------------------------------
 
     if "reset_nonce" not in st.session_state:
         st.session_state["reset_nonce"] = 0
@@ -1936,151 +1956,6 @@ if input_mode == "📊 I have a Trial Balance":
 
         source_ready = True
         source_is_generated = False
-
-# ---------------------------------------------------------
-# PATH B — NEW AI TRIAL BALANCE BUILDER
-# ---------------------------------------------------------
-
-else:
-
-    st.caption(
-        "Don't have a Trial Balance? Upload your accounting data or paste it below. "
-        "AccountingAI will build a Trial Balance for you to verify before preparation."
-    )
-
-    ai_source_file = st.file_uploader(
-        "Upload accounting data",
-        type=["pdf", "xlsx", "xls", "csv", "txt", "md"],
-        help="Supported: PDF, Excel, CSV, TXT and Markdown files.",
-        key="ai_source_upload_v2",
-    )
-
-    pasted_source = st.text_area(
-        "Or paste accounting data here",
-        height=180,
-        placeholder=(
-            "Example:\n"
-            "Purchased goods from ABC Traders ₹40,000\n"
-            "Purchased goods from XYZ Ltd ₹25,000\n"
-            "Sold goods to Ravi ₹60,000\n"
-            "Paid rent ₹10,000"
-        ),
-        key="ai_source_paste_v2",
-    )
-
-    if ai_source_file:
-        st.success(f"Source uploaded: **{ai_source_file.name}**")
-
-    if pasted_source.strip():
-        st.info("Pasted data is ready for AI processing.")
-
-    if st.button(
-        "🤖 Build Trial Balance with AI",
-        type="primary",
-        use_container_width=True,
-        key="build_ai_tb_v2",
-    ):
-        try:
-            with st.spinner("AI is reading the source and building the Trial Balance..."):
-                if ai_source_file:
-                    source_text = extract_source_text(ai_source_file)
-                else:
-                    source_text = pasted_source.strip()
-
-                generated_tb, clarification_data = build_ai_trial_balance(source_text)
-
-            if generated_tb is None:
-                st.error(clarification_data)
-            else:
-                st.session_state["generated_tb"] = generated_tb.to_dict("records")
-                st.session_state["generated_tb_clarifications"] = clarification_data
-                st.session_state["generated_tb_confirmed"] = False
-                st.session_state["prepared"] = False
-                st.session_state.pop("results", None)
-                st.success("AI-generated Trial Balance created. Please verify it below. ✅")
-        except Exception as ai_tb_error:
-            st.error("The AI Trial Balance builder could not process this source.")
-            st.exception(ai_tb_error)
-
-    if st.session_state.get("generated_tb"):
-        generated_tb = pd.DataFrame(st.session_state["generated_tb"])
-        generated_tb["Debit"] = clean_number_series(generated_tb["Debit"])
-        generated_tb["Credit"] = clean_number_series(generated_tb["Credit"])
-
-        st.divider()
-        st.markdown("### 🤖 AI-Generated Trial Balance")
-        st.caption(
-            "Review and edit the generated accounts and amounts. AccountingAI will not create a balancing figure automatically."
-        )
-
-        editor_columns = ["Account", "Debit", "Credit", "Confidence", "Ambiguous"]
-        edited_tb = st.data_editor(
-            generated_tb[editor_columns],
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Debit": st.column_config.NumberColumn("Debit ₹", min_value=0, format="%.2f"),
-                "Credit": st.column_config.NumberColumn("Credit ₹", min_value=0, format="%.2f"),
-                "Confidence": st.column_config.NumberColumn("AI Confidence", min_value=0, max_value=1, format="%.2f"),
-                "Ambiguous": st.column_config.CheckboxColumn("Needs review"),
-            },
-            key="generated_tb_editor_v2",
-        )
-
-        edited_tb["Account"] = edited_tb["Account"].astype(str).str.strip()
-        edited_tb["Debit"] = clean_number_series(edited_tb["Debit"])
-        edited_tb["Credit"] = clean_number_series(edited_tb["Credit"])
-        edited_tb = edited_tb[edited_tb["Account"].ne("")].copy()
-
-        generated_debit = float(edited_tb["Debit"].sum())
-        generated_credit = float(edited_tb["Credit"].sum())
-        generated_difference = generated_debit - generated_credit
-
-        if abs(generated_difference) < 0.01:
-            st.success(
-                f"**Generated Trial Balance Tally ✅**  Debit: {indian_currency(generated_debit)} | Credit: {indian_currency(generated_credit)}"
-            )
-        else:
-            st.error(
-                f"**Generated Trial Balance does not tally ❌**  Debit: {indian_currency(generated_debit)} | Credit: {indian_currency(generated_credit)} | Difference: {indian_currency(abs(generated_difference))}"
-            )
-
-        clarification_data = st.session_state.get("generated_tb_clarifications", [])
-        if clarification_data:
-            st.markdown("### ⚠️ AI Clarifications")
-            for item in clarification_data:
-                if isinstance(item, dict):
-                    st.warning(
-                        f"**{item.get('item', 'Item')}** — {item.get('question', 'More information is required.')}"
-                    )
-
-        if st.button(
-            "✅ Confirm AI Trial Balance",
-            type="primary",
-            use_container_width=True,
-            key="confirm_ai_tb_v2",
-        ):
-            if abs(generated_difference) >= 0.01:
-                st.error("Please correct the Trial Balance until Debit equals Credit before continuing.")
-            elif edited_tb["Ambiguous"].fillna(False).astype(bool).any():
-                st.error("Please resolve the accounts marked 'Needs review' before continuing.")
-            else:
-                st.session_state["generated_tb"] = edited_tb.to_dict("records")
-                st.session_state["generated_tb_confirmed"] = True
-                st.session_state["file_token"] = "generated_tb_v2"
-                st.session_state["prepared"] = False
-                st.success("AI Trial Balance confirmed. It can now enter the existing financial-statement workflow. ✅")
-                st.rerun()
-
-        if not st.session_state.get("generated_tb_confirmed", False):
-            st.stop()
-
-        source_df = pd.DataFrame(st.session_state["generated_tb"])
-        source_df["Debit"] = clean_number_series(source_df["Debit"])
-        source_df["Credit"] = clean_number_series(source_df["Credit"])
-        source_ready = True
-        source_is_generated = True
 
 # ---------------------------------------------------------
 # COMMON TRIAL BALANCE NORMALISATION + VALIDATION
@@ -3255,6 +3130,11 @@ if st.session_state.get("prepared", False):
             - profit
         ) < 0.01
 
+        tax_pbt_review_required = (
+            profit_before_tax < -0.01
+            and tax_expense > 0.01
+        )
+
         validation_checks = [
             (
                 "Trial Balance balances",
@@ -3318,6 +3198,13 @@ if st.session_state.get("prepared", False):
             st.error(
                 f"{invalid_classification_count} account(s) "
                 "have an unapproved classification."
+            )
+
+        if tax_pbt_review_required:
+            st.warning(
+                "PBT is negative while Tax Expense is present. "
+                "Tax Expense is correctly shown below PBT, but review whether "
+                "the amount represents deferred tax or another applicable tax adjustment."
             )
 
         if review_count > 0:
@@ -3419,13 +3306,65 @@ if st.session_state.get("prepared", False):
 
 
         # =====================================================
+        # FEEDBACK & BUG REPORT
+        # =====================================================
+
+        st.divider()
+        st.markdown("## 💬 Feedback & Bug Report")
+        st.caption(
+            "Help us improve Accountra. Tell us what worked, what didn't, "
+            "or what you would like to see next."
+        )
+
+        feedback_type = st.radio(
+            "What would you like to send?",
+            ["💬 Feedback", "🐛 Report a Bug"],
+            horizontal=True,
+            key="feedback_type",
+        )
+
+        with st.form("feedback_form"):
+            feedback_message = st.text_area(
+                "Your message",
+                placeholder=(
+                    "Tell us what happened, what you expected, or what you would like us to improve..."
+                ),
+                height=120,
+                key="feedback_message",
+            )
+
+            feedback_email = st.text_input(
+                "Email (optional)",
+                placeholder="you@example.com",
+                key="feedback_email",
+            )
+
+            submitted = st.form_submit_button(
+                "Send Feedback",
+                type="primary",
+                use_container_width=True,
+            )
+
+            if submitted:
+                if feedback_message.strip():
+                    st.session_state["feedback_submitted"] = True
+                    st.session_state["feedback_last_type"] = feedback_type
+                    st.session_state["feedback_last_message"] = feedback_message.strip()
+                    st.success(
+                        "Thanks! Your feedback was recorded for this session. "
+                        "We'll connect a persistent feedback inbox before public launch."
+                    )
+                else:
+                    st.warning("Please enter a message before submitting.")
+
+        # =====================================================
         # FOOTER
         # =====================================================
 
         st.divider()
 
         st.caption(
-            "Accounting AI • Schedule III-style financial statement "
+            "Accountra • Schedule III-style financial statement "
             "presentation • Review all classifications and required "
             "disclosures before using statements for statutory filing."
         )
