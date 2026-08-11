@@ -11,6 +11,7 @@ import streamlit as st
 from openai import OpenAI
 
 from openpyxl import Workbook
+from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
@@ -32,8 +33,17 @@ from reportlab.platypus import (
     Table,
     TableStyle,
     PageBreak,
+    Image as RLImage,
 )
 
+
+# =========================================================
+# ACCOUNTRA BRAND ASSETS
+# =========================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+LOGO_PATH = BASE_DIR / "accountra_logo.png"
+CREATOR_NAME = "Rohan A."
 
 # =========================================================
 # DISPLAY / DATA HELPERS
@@ -315,20 +325,31 @@ def make_schedule3_excel(
 
     # Cover sheet
     cover = wb.create_sheet("Report Cover", 0)
-    cover["A1"] = company_name
-    cover["A1"].font = Font(size=20, bold=True, color="FFFFFF")
-    cover["A1"].fill = PatternFill("solid", fgColor="17365D")
-    cover.merge_cells("A1:D2")
-    cover["A4"] = "Accountra — Schedule III-style Financial Statements"
+
+    if LOGO_PATH.exists():
+        try:
+            logo = XLImage(str(LOGO_PATH))
+            logo.width = 260
+            logo.height = 194
+            cover.add_image(logo, "A1")
+        except Exception:
+            pass
+    cover["A12"] = company_name
+    cover["A12"].font = Font(size=20, bold=True, color="FFFFFF")
+    cover["A12"].fill = PatternFill("solid", fgColor="17365D")
+    cover.merge_cells("A12:D13")
+    cover["A15"] = "Accountra — Schedule III-style Financial Statements"
     cover["A4"].font = Font(size=14, bold=True)
-    cover["A5"] = f"Reporting date: {reporting_date.strftime('%d %B %Y')}"
-    cover["A6"] = f"CIN: {cin}" if cin else "CIN: Not provided"
-    cover["A8"] = "Important"
-    cover["A8"].font = Font(bold=True)
-    cover["A9"] = (
+    cover["A16"] = f"Reporting date: {reporting_date.strftime('%d %B %Y')}"
+    cover["A17"] = f"CIN: {cin}" if cin else "CIN: Not provided"
+    cover["A19"] = "Important"
+    cover["A19"].font = Font(bold=True)
+    cover["A20"] = (
         "This is an AI-assisted accounting preparation report. "
         "Review classifications, notes and statutory disclosures before filing."
     )
+    cover["A22"] = f"Built by {CREATOR_NAME} • Accountra"
+    cover["A22"].font = Font(size=9, italic=True, color="7F7F7F")
     cover.column_dimensions["A"].width = 100
 
     output = BytesIO()
@@ -419,7 +440,18 @@ def make_schedule3_pdf(
         spaceAfter=7,
     )
 
-    story = [
+    story = []
+
+    if LOGO_PATH.exists():
+        try:
+            logo = RLImage(str(LOGO_PATH), width=150, height=112)
+            logo.hAlign = "CENTER"
+            story.append(logo)
+            story.append(Spacer(1, 5))
+        except Exception:
+            pass
+
+    story.extend([
         Paragraph(company_name, title_style),
         Paragraph(
             f"Schedule III-style Financial Statements<br/>"
@@ -427,7 +459,7 @@ def make_schedule3_pdf(
             + (f"<br/>CIN: {cin}" if cin else ""),
             subtitle_style,
         ),
-    ]
+    ])
 
     def add_table(title, rows):
         story.append(Paragraph(title, section_style))
@@ -487,6 +519,18 @@ def make_schedule3_pdf(
         "AI-assisted report — review classifications and statutory disclosures "
         "before relying on the statements for statutory filing.",
         styles["Italic"],
+    ))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph(
+        f"Built by {CREATOR_NAME} • Accountra",
+        ParagraphStyle(
+            "CreatorCredit",
+            parent=styles["Normal"],
+            alignment=TA_CENTER,
+            fontSize=8,
+            fontName=regular_font,
+            textColor=colors.grey,
+        ),
     ))
 
     doc.build(story)
@@ -1818,6 +1862,16 @@ st.markdown(
 # =========================================================
 
 if st.session_state.get("app_page", "landing") != "workspace":
+    if LOGO_PATH.exists():
+        logo_left, logo_right = st.columns([0.16, 0.84], vertical_alignment="center")
+        with logo_left:
+            st.image(str(LOGO_PATH), width=125)
+        with logo_right:
+            st.markdown(
+                '<div style="font-size:1.15rem;font-weight:750;opacity:.7;">Classify • Prepare • Validate</div>',
+                unsafe_allow_html=True,
+            )
+
     st.markdown(
         """
         <div class="landing-shell">
@@ -1986,15 +2040,34 @@ if st.session_state.get("app_page", "landing") != "workspace":
 
     st.stop()
 
-st.markdown(
-    """
-    <div class="app-hero">
-        <h1>📊 Accountra</h1>
-        <p>Trial Balance → AI classification → Schedule III-style financial statements → validation</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+if LOGO_PATH.exists():
+    logo_col, name_col = st.columns([0.18, 0.82], vertical_alignment="center")
+    with logo_col:
+        st.image(str(LOGO_PATH), width=115)
+    with name_col:
+        st.markdown(
+            """
+            <div style="padding-top:.25rem;">
+                <div style="font-size:1.85rem;font-weight:850;letter-spacing:-.03em;">
+                    Accountra
+                </div>
+                <div style="font-size:.92rem;opacity:.68;">
+                    Classify • Prepare • Validate
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+else:
+    st.markdown(
+        """
+        <div class="app-hero">
+            <h1>📊 Accountra</h1>
+            <p>Trial Balance → AI classification → Schedule III-style financial statements → validation</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # =========================================================
 # SIDEBAR — REPORTING INFORMATION
@@ -3576,6 +3649,15 @@ if st.session_state.get("prepared", False):
             "presentation • Review all classifications and required "
             "disclosures before using statements for statutory filing."
         )
+
+# =====================================================
+# CREATOR CREDIT
+# =====================================================
+
+st.markdown(
+    f'<div style="text-align:center;font-size:.78rem;opacity:.52;margin-top:2rem;margin-bottom:.8rem;">Built by {CREATOR_NAME} • Accountra</div>',
+    unsafe_allow_html=True,
+)
 
 # =====================================================
 # FEEDBACK & BUG REPORT
