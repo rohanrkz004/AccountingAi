@@ -1722,10 +1722,269 @@ st.markdown(
         border: 1px solid rgba(34,197,94,.25);
         margin: .35rem 0;
     }
+
+    .landing-shell {
+        max-width: 1180px;
+        margin: 2rem auto 0 auto;
+    }
+
+    .landing-hero {
+        padding: 3.4rem 3.2rem;
+        border-radius: 28px;
+        border: 1px solid rgba(99,102,241,.18);
+        background:
+            radial-gradient(circle at 85% 18%, rgba(14,165,233,.18), transparent 28%),
+            radial-gradient(circle at 15% 90%, rgba(99,102,241,.16), transparent 30%),
+            linear-gradient(135deg, rgba(99,102,241,.12), rgba(14,165,233,.07));
+        box-shadow: 0 20px 60px rgba(30,41,59,.10);
+    }
+
+    .landing-eyebrow {
+        display: inline-block;
+        padding: .42rem .78rem;
+        border-radius: 999px;
+        border: 1px solid rgba(99,102,241,.22);
+        background: rgba(255,255,255,.55);
+        font-size: .82rem;
+        font-weight: 700;
+        letter-spacing: .03em;
+        margin-bottom: 1rem;
+    }
+
+    .landing-title {
+        font-size: clamp(2.6rem, 5vw, 4.5rem);
+        line-height: 1.02;
+        font-weight: 850;
+        letter-spacing: -.04em;
+        margin: 0;
+    }
+
+    .landing-title span {
+        background: linear-gradient(90deg, #4f46e5, #0891b2);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    .landing-copy {
+        max-width: 650px;
+        margin-top: 1.1rem;
+        font-size: 1.12rem;
+        line-height: 1.65;
+        opacity: .76;
+    }
+
+    .landing-visual {
+        min-height: 360px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .landing-feature {
+        height: 100%;
+        padding: 1.15rem 1.2rem;
+        border-radius: 18px;
+        border: 1px solid rgba(128,128,128,.16);
+        background: rgba(255,255,255,.48);
+    }
+
+    .landing-feature-title {
+        font-weight: 800;
+        font-size: 1rem;
+        margin-bottom: .35rem;
+    }
+
+    .landing-feature-text {
+        font-size: .88rem;
+        line-height: 1.5;
+        opacity: .68;
+    }
+
+    .landing-note {
+        text-align: center;
+        margin-top: 1.4rem;
+        font-size: .82rem;
+        opacity: .58;
+    }
     </style>
     """,
     unsafe_allow_html=True,
 )
+
+
+# =========================================================
+# LANDING PAGE
+# =========================================================
+
+if st.session_state.get("app_page", "landing") != "workspace":
+    st.markdown(
+        """
+        <div class="landing-shell">
+            <div class="landing-hero">
+                <div class="landing-eyebrow">📊 AI-POWERED ACCOUNTING</div>
+                <div class="landing-title">
+                    Welcome to <span>Accountra</span>
+                </div>
+                <div class="landing-copy">
+                    Your AI assistant for preparing clear, structured and validated
+                    financial statements from a Trial Balance — without the tedious
+                    manual classification work.
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    visual_col, text_col = st.columns([1.05, 1], gap="large")
+
+    with visual_col:
+        st.markdown(
+            """
+            <div class="landing-visual">
+                <svg viewBox="0 0 620 430" width="100%" role="img"
+                     aria-label="Accounting dashboard illustration">
+                    <defs>
+                        <linearGradient id="card" x1="0" x2="1">
+                            <stop offset="0%" stop-color="#eef2ff"/>
+                            <stop offset="100%" stop-color="#ecfeff"/>
+                        </linearGradient>
+                        <linearGradient id="screen" x1="0" x2="1">
+                            <stop offset="0%" stop-color="#4f46e5"/>
+                            <stop offset="100%" stop-color="#0891b2"/>
+                        </linearGradient>
+                    </defs>
+                    <rect x="65" y="55" width="490" height="315" rx="28"
+                          fill="url(#card)" stroke="#cbd5e1" stroke-width="2"/>
+                    <rect x="105" y="92" width="410" height="235" rx="18"
+                          fill="#ffffff" stroke="#dbeafe" stroke-width="2"/>
+                    <rect x="132" y="120" width="190" height="18" rx="9"
+                          fill="url(#screen)"/>
+                    <rect x="132" y="154" width="115" height="10" rx="5"
+                          fill="#cbd5e1"/>
+                    <rect x="132" y="180" width="160" height="86" rx="12"
+                          fill="#f8fafc" stroke="#e2e8f0"/>
+                    <line x1="148" y1="247" x2="148" y2="203"
+                          stroke="#4f46e5" stroke-width="12" stroke-linecap="round"/>
+                    <line x1="180" y1="247" x2="180" y2="220"
+                          stroke="#0891b2" stroke-width="12" stroke-linecap="round"/>
+                    <line x1="212" y1="247" x2="212" y2="194"
+                          stroke="#6366f1" stroke-width="12" stroke-linecap="round"/>
+                    <line x1="244" y1="247" x2="244" y2="211"
+                          stroke="#06b6d4" stroke-width="12" stroke-linecap="round"/>
+                    <line x1="276" y1="247" x2="276" y2="187"
+                          stroke="#4f46e5" stroke-width="12" stroke-linecap="round"/>
+                    <rect x="315" y="180" width="170" height="86" rx="12"
+                          fill="#f8fafc" stroke="#e2e8f0"/>
+                    <text x="335" y="205" font-size="12" font-weight="700"
+                          fill="#334155">FINANCIAL STATEMENTS</text>
+                    <text x="335" y="229" font-size="11" fill="#64748b">Profit &amp; Loss</text>
+                    <text x="335" y="248" font-size="11" fill="#64748b">Balance Sheet</text>
+                    <rect x="165" y="285" width="260" height="16" rx="8"
+                          fill="#e2e8f0"/>
+                    <rect x="165" y="285" width="178" height="16" rx="8"
+                          fill="url(#screen)"/>
+                    <circle cx="500" cy="90" r="33" fill="#ffffff"
+                            stroke="#cbd5e1" stroke-width="2"/>
+                    <path d="M485 91 L496 102 L516 78"
+                          fill="none" stroke="#16a34a" stroke-width="8"
+                          stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="25" y="245" width="125" height="90" rx="18"
+                          fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                    <text x="45" y="272" font-size="12" font-weight="700"
+                          fill="#334155">TRIAL BALANCE</text>
+                    <text x="45" y="297" font-size="11" fill="#64748b">Debit</text>
+                    <text x="105" y="297" font-size="11" fill="#4f46e5">₹</text>
+                    <text x="45" y="317" font-size="11" fill="#64748b">Credit</text>
+                    <text x="105" y="317" font-size="11" fill="#0891b2">₹</text>
+                    <circle cx="535" cy="315" r="45" fill="#eef2ff"/>
+                    <path d="M515 315 h40 M535 295 v40"
+                          stroke="#4f46e5" stroke-width="7" stroke-linecap="round"/>
+                    <path d="M520 345 h30" stroke="#0891b2" stroke-width="6"
+                          stroke-linecap="round"/>
+                </svg>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with text_col:
+        st.markdown("### From numbers to statements — in one workflow.")
+        st.write(
+            "Upload your Trial Balance, let Accountra classify the accounts, "
+            "review anything ambiguous, and generate Schedule III-style "
+            "financial statements with validation checks."
+        )
+
+        f1, f2 = st.columns(2)
+        with f1:
+            st.markdown(
+                """
+                <div class="landing-feature">
+                    <div class="landing-feature-title">📂 Upload</div>
+                    <div class="landing-feature-text">
+                        Start with your Excel or CSV Trial Balance.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with f2:
+            st.markdown(
+                """
+                <div class="landing-feature">
+                    <div class="landing-feature-title">🤖 Classify</div>
+                    <div class="landing-feature-text">
+                        AI-assisted account classification with review flags.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        f3, f4 = st.columns(2)
+        with f3:
+            st.markdown(
+                """
+                <div class="landing-feature">
+                    <div class="landing-feature-title">📑 Generate</div>
+                    <div class="landing-feature-text">
+                        Prepare Profit &amp; Loss and Balance Sheet statements.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with f4:
+            st.markdown(
+                """
+                <div class="landing-feature">
+                    <div class="landing-feature-title">✅ Validate</div>
+                    <div class="landing-feature-text">
+                        Check balances and review accounting classifications.
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button(
+            "🚀 Get Started",
+            type="primary",
+            use_container_width=True,
+            key="landing_get_started",
+        ):
+            st.session_state["app_page"] = "workspace"
+            st.rerun()
+
+    st.markdown(
+        '<div class="landing-note">Built for accounting workflows • Always review outputs before statutory use.</div>',
+        unsafe_allow_html=True,
+    )
+
+    st.stop()
 
 st.markdown(
     """
@@ -1742,6 +2001,10 @@ st.markdown(
 # =========================================================
 
 with st.sidebar:
+    if st.button("← Home", use_container_width=True, key="back_home"):
+        st.session_state["app_page"] = "landing"
+        st.rerun()
+
     st.header("📋 Report Details")
 
     company_name = st.text_input(
@@ -1786,8 +2049,6 @@ with st.sidebar:
         "These details are used for the report heading and exports."
     )
 
-    st.info("💬 Feedback & bug reporting is available below the start section.")
-
     st.divider()
     st.markdown("### Workflow")
     st.markdown(
@@ -1801,60 +2062,6 @@ with st.sidebar:
         """
     )
 
-# =====================================================
-# FEEDBACK & BUG REPORT
-# =====================================================
-
-st.divider()
-st.markdown("## 💬 Feedback & Bug Report")
-st.caption(
-    "Help us improve Accountra. Tell us what worked, what didn't, "
-    "or what you would like to see next."
-)
-
-feedback_type = st.radio(
-    "What would you like to send?",
-    ["💬 Feedback", "🐛 Report a Bug"],
-    horizontal=True,
-    key="feedback_type",
-)
-
-with st.form("feedback_form"):
-    feedback_message = st.text_area(
-        "Your message",
-        placeholder=(
-            "Tell us what happened, what you expected, or what you would like us to improve..."
-        ),
-        height=120,
-        key="feedback_message",
-    )
-
-    feedback_email = st.text_input(
-        "Email (optional)",
-        placeholder="you@example.com",
-        key="feedback_email",
-    )
-
-    submitted = st.form_submit_button(
-        "Send Feedback",
-        type="primary",
-        use_container_width=True,
-    )
-
-    if submitted:
-        if feedback_message.strip():
-            st.session_state["feedback_submitted"] = True
-            st.session_state["feedback_last_type"] = feedback_type
-            st.session_state["feedback_last_message"] = feedback_message.strip()
-            st.success(
-                "Thanks! Your feedback was recorded for this session. "
-                "We'll connect a persistent feedback inbox before public launch."
-            )
-        else:
-            st.warning("Please enter a message before submitting.")
-
-
-# =========================================================
 # STEP 1 — CHOOSE INPUT WORKFLOW
 # =========================================================
 
@@ -3369,3 +3576,58 @@ if st.session_state.get("prepared", False):
             "presentation • Review all classifications and required "
             "disclosures before using statements for statutory filing."
         )
+
+# =====================================================
+# FEEDBACK & BUG REPORT
+# =====================================================
+
+st.divider()
+st.markdown("## 💬 Feedback & Bug Report")
+st.caption(
+    "Help us improve Accountra. Tell us what worked, what didn't, "
+    "or what you would like to see next."
+)
+
+feedback_type = st.radio(
+    "What would you like to send?",
+    ["💬 Feedback", "🐛 Report a Bug"],
+    horizontal=True,
+    key="feedback_type",
+)
+
+with st.form("feedback_form"):
+    feedback_message = st.text_area(
+        "Your message",
+        placeholder=(
+            "Tell us what happened, what you expected, or what you would like us to improve..."
+        ),
+        height=120,
+        key="feedback_message",
+    )
+
+    feedback_email = st.text_input(
+        "Email (optional)",
+        placeholder="you@example.com",
+        key="feedback_email",
+    )
+
+    submitted = st.form_submit_button(
+        "Send Feedback",
+        type="primary",
+        use_container_width=True,
+    )
+
+    if submitted:
+        if feedback_message.strip():
+            st.session_state["feedback_submitted"] = True
+            st.session_state["feedback_last_type"] = feedback_type
+            st.session_state["feedback_last_message"] = feedback_message.strip()
+            st.success(
+                "Thanks! Your feedback was recorded for this session. "
+                "We'll connect a persistent feedback inbox before public launch."
+            )
+        else:
+            st.warning("Please enter a message before submitting.")
+
+
+# =========================================================
