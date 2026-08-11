@@ -3625,9 +3625,9 @@ if st.session_state.get("prepared", False):
             company_name.strip() or "AccountingAI"
         ).strip("_")
 
-        # These two download buttons have different labels, so let Streamlit
-        # generate their widget IDs automatically. This avoids any collision
-        # with keys created elsewhere in the app/session.
+        # Explicit, permanently distinct keys for the two export widgets.
+        # These keys are unique in the entire app and do not depend on the
+        # uploaded workbook, filename, or rerun state.
         with export_col1:
             st.download_button(
                 "📊 Download Excel Working Paper",
@@ -3637,6 +3637,7 @@ if st.session_state.get("prepared", False):
                     "application/vnd.openxmlformats-officedocument."
                     "spreadsheetml.sheet"
                 ),
+                key="accountra_export_excel_v1",
             )
 
         with export_col2:
@@ -3645,6 +3646,7 @@ if st.session_state.get("prepared", False):
                 data=pdf_bytes,
                 file_name=f"{safe_company}_Financial_Statements.pdf",
                 mime="application/pdf",
+                key="accountra_export_pdf_v1",
             )
 
 
