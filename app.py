@@ -1504,6 +1504,68 @@ Return JSON in exactly this shape:
 
 
 # =========================================================
+# COMPARATIVE / RESET HELPERS
+# =========================================================
+
+
+def classify_comparative_tb(comparative_df):
+    """Classify a previous-year TB with the same deterministic rules used by the current TB."""
+    rows = []
+    for _, row in comparative_df.iterrows():
+        account = str(row.get("Account", "")).strip()
+        if not account:
+            continue
+        debit = float(row.get("Debit", 0) or 0)
+        credit = float(row.get("Credit", 0) or 0)
+        result = classify_account(account, debit, credit)
+        if result is None:
+            # For comparative information, avoid AI guessing; keep only what can be classified.
+            continue
+        classification = result.get("classification", "")
+        if classification not in APPROVED_HEADS:
+            continue
+        rows.append({
+            "Account": account,
+            "Debit": debit,
+            "Credit": credit,
+            "Classification": classification,
+            "Nature": result.get("nature", "Unknown"),
+        })
+    return pd.DataFrame(rows)
+
+
+def clear_accounting_session():
+    """Clear all generated/upload-derived accounting state."""
+    keep_keys = {
+        "input_mode", "company_name", "cin", "reporting_date", "business_nature",
+        "materiality_threshold", "reset_nonce"
+    }
+    for key in list(st.session_state.keys()):
+        if key not in keep_keys and (
+            key.startswith("override_")
+            or key.startswith("trial_balance_upload")
+            or key.startswith("comparative_trial_balance_upload")
+            or key.startswith("ai_source_upload")
+            or key.startswith("generated_tb_editor")
+            or key.startswith("prepare_fs_button")
+            or key.startswith("confirm_ai_tb")
+            or key.startswith("download_")
+            or key in {
+                "file_token", "prepared", "results", "comparative_results",
+                "generated_tb", "generated_tb_clarifications", "generated_tb_confirmed",
+                "comparative_loaded"
+            }
+        ):
+            del st.session_state[key]
+    st.session_state["file_token"] = None
+    st.session_state["prepared"] = False
+    st.session_state.pop("results", None)
+    st.session_state.pop("comparative_results", None)
+    st.session_state.pop("comparative_loaded", None)
+    st.session_state["generated_tb_confirmed"] = False
+    st.session_state["reset_nonce"] = int(st.session_state.get("reset_nonce", 0)) + 1
+
+# =========================================================
 # STREAMLIT APP — SCHEDULE III PRESENTATION
 # =========================================================
 
@@ -1694,6 +1756,16 @@ with st.sidebar:
         key="cin",
     )
 
+    materiality_threshold = st.number_input(
+        "Comparative movement review threshold (%)",
+        min_value=1.0,
+        max_value=100.0,
+        value=20.0,
+        step=5.0,
+        key="materiality_threshold",
+        help="Used only when a previous-year Trial Balance is supplied.",
+    )
+
     reporting_date = st.date_input(
         "Reporting Date",
         value=date.today(),
@@ -1757,19 +1829,46 @@ if input_mode == "📊 I have a Trial Balance":
         "Upload an Excel or CSV Trial Balance containing Account, Debit and Credit columns."
     )
 
+    if "reset_nonce" not in st.session_state:
+        st.session_state["reset_nonce"] = 0
+
     uploaded_file = st.file_uploader(
         "Choose a Trial Balance file",
         type=["xlsx", "xls", "csv"],
         help="Supported formats: .xlsx, .xls and .csv",
-        key="trial_balance_upload_v2",
+        key=f"trial_balance_upload_v3_{st.session_state['reset_nonce']}",
     )
 
     if uploaded_file:
+        reset_col, compare_col = st.columns([1, 2])
+        with reset_col:
+            if st.button(
+                "🗑️ Remove file & reset",
+                key="reset_uploaded_accounting_v3",
+                use_container_width=True,
+            ):
+                clear_accounting_session()
+                st.rerun()
+
+        st.markdown("### 📊 Comparative Information (Optional)")
+        st.caption(
+            "Have a previous-year Trial Balance? Upload it to show previous-period amounts and movement analysis. "
+            "If you do not provide one, the previous-period column remains — and no movement is calculated."
+        )
+        comparative_file = st.file_uploader(
+            "Upload previous-year Trial Balance (optional)",
+            type=["xlsx", "xls", "csv"],
+            help="Optional previous-year Trial Balance used for comparative presentation and movement analysis.",
+            key=f"comparative_trial_balance_upload_v3_{st.session_state['reset_nonce']}",
+        )
+
         file_token = f"tb_{uploaded_file.name}_{uploaded_file.size}"
         if st.session_state.get("file_token") != file_token:
             st.session_state["file_token"] = file_token
             st.session_state["prepared"] = False
             st.session_state.pop("results", None)
+            st.session_state.pop("comparative_results", None)
+            st.session_state.pop("comparative_loaded", None)
             for key in list(st.session_state.keys()):
                 if key.startswith("override_"):
                     del st.session_state[key]
@@ -1789,6 +1888,51 @@ if input_mode == "📊 I have a Trial Balance":
             st.error("Could not read the uploaded Trial Balance. Please check the file.")
             st.exception(upload_error)
             st.stop()
+
+        comparative_df = None
+        if comparative_file is not None:
+            if comparative_file.size and comparative_file.size > 15 * 1024 * 1024:
+                st.error("Comparative file is larger than 15 MB.")
+                st.stop()
+            try:
+                if comparative_file.name.lower().endswith(".csv"):
+                    comparative_df = pd.read_csv(comparative_file)
+                else:
+                    comparative_df = pd.read_excel(comparative_file)
+
+                comparative_df.columns = (
+                    comparative_df.columns.astype(str)
+                    .str.strip().str.lower()
+                    .str.replace("₹", "", regex=False)
+                    .str.replace("(", "", regex=False)
+                    .str.replace(")", "", regex=False)
+                    .str.strip()
+                )
+                comparative_df = comparative_df.rename(columns={
+                    "account": "Account", "account name": "Account", "ledger": "Account",
+                    "ledger account": "Account", "particulars": "Account",
+                    "debit": "Debit", "debits": "Debit", "dr": "Debit",
+                    "credit": "Credit", "credits": "Credit", "cr": "Credit",
+                })
+                required_comparative = {"Account", "Debit", "Credit"}
+                if not required_comparative.issubset(comparative_df.columns):
+                    st.warning(
+                        "Comparative file was uploaded but does not contain Account, Debit and Credit columns. "
+                        "Comparative information will be skipped."
+                    )
+                    comparative_df = None
+                else:
+                    total_row_names = {"total", "grand total", "trial balance total", "subtotal", "total trial balance"}
+                    comparative_df = comparative_df[
+                        ~comparative_df["Account"].astype(str).str.strip().str.lower().isin(total_row_names)
+                    ].copy()
+                    comparative_df["Debit"] = clean_number_series(comparative_df["Debit"])
+                    comparative_df["Credit"] = clean_number_series(comparative_df["Credit"])
+                    st.success(f"Comparative TB loaded: **{comparative_file.name}**")
+            except Exception as comparative_error:
+                st.warning("Could not read the comparative Trial Balance. The current-year workflow will continue without comparative information.")
+                st.exception(comparative_error)
+                comparative_df = None
 
         source_ready = True
         source_is_generated = False
@@ -2097,6 +2241,15 @@ if source_ready and source_df is not None:
             results_df["Debit"] = clean_number_series(results_df["Debit"])
             results_df["Credit"] = clean_number_series(results_df["Credit"])
             st.session_state["results"] = results_df.to_dict("records")
+
+            if comparative_df is not None and len(comparative_df):
+                comparative_results_df = classify_comparative_tb(comparative_df)
+                st.session_state["comparative_results"] = comparative_results_df.to_dict("records")
+                st.session_state["comparative_loaded"] = True
+            else:
+                st.session_state.pop("comparative_results", None)
+                st.session_state.pop("comparative_loaded", None)
+
             st.success("AI analysis completed successfully! ✅")
 
 
@@ -2477,15 +2630,81 @@ if st.session_state.get("prepared", False):
 
 
     # -----------------------------------------------------
+    # COMPARATIVE INFORMATION / MOVEMENT ANALYSIS
+    # -----------------------------------------------------
+
+    comparative_previous = {}
+    if st.session_state.get("comparative_results"):
+        comparative_results_df = pd.DataFrame(st.session_state["comparative_results"])
+        if len(comparative_results_df):
+            prev_group = comparative_results_df.groupby("Classification")[["Debit", "Credit"]].sum()
+            prev_group["Net"] = prev_group["Credit"] - prev_group["Debit"]
+            comparative_previous = prev_group["Net"].to_dict()
+
+            current_group = results_df.groupby("Classification")[["Debit", "Credit"]].sum()
+            current_group["Net"] = current_group["Credit"] - current_group["Debit"]
+            movement_rows = []
+            all_heads = sorted(set(current_group.index) | set(prev_group.index))
+            for head in all_heads:
+                cur = float(current_group.loc[head, "Net"]) if head in current_group.index else 0.0
+                prev = float(prev_group.loc[head, "Net"]) if head in prev_group.index else 0.0
+                change = cur - prev
+                if abs(prev) < 0.005:
+                    change_pct = None
+                else:
+                    change_pct = (change / abs(prev)) * 100.0
+                material = bool(change_pct is not None and abs(change_pct) >= float(materiality_threshold))
+                movement_rows.append({
+                    "Classification": head,
+                    "Current Period": cur,
+                    "Previous Period": prev,
+                    "Change": change,
+                    "Change %": change_pct,
+                    "Material Movement": material,
+                })
+
+            st.divider()
+            st.markdown("## 📈 Comparative Information")
+            st.caption(
+                f"Previous-year information supplied. Material movement threshold: {materiality_threshold:.0f}%."
+            )
+            movement_df = pd.DataFrame(movement_rows)
+            display_movement = movement_df.copy()
+            display_movement["Current Period"] = display_movement["Current Period"].map(indian_currency)
+            display_movement["Previous Period"] = display_movement["Previous Period"].map(indian_currency)
+            display_movement["Change"] = display_movement["Change"].map(indian_currency)
+            display_movement["Change %"] = display_movement["Change %"].apply(
+                lambda x: "—" if pd.isna(x) else f"{x:+.1f}%"
+            )
+            display_movement = display_movement.rename(columns={
+                "Current Period": "Current Period ₹",
+                "Previous Period": "Previous Period ₹",
+                "Change": "Change ₹",
+            })
+            st.dataframe(display_movement, width="stretch", hide_index=True)
+
+            material_rows = movement_df[movement_df["Material Movement"]].copy()
+            if len(material_rows):
+                st.warning(f"⚠️ {len(material_rows)} classification(s) crossed the {materiality_threshold:.0f}% movement review threshold.")
+            else:
+                st.success("No classification-level movements crossed the selected review threshold.")
+
+    # -----------------------------------------------------
     # P&L
     # -----------------------------------------------------
 
+    def previous_amount(classification, income=False, expense=False):
+        value = comparative_previous.get(classification)
+        if value is None:
+            return None
+        return float(value)
+
     pnl_rows_display = [
         {"label": "I. Revenue from Operations", "kind": "section"},
-        {"label": "Revenue from Operations", "note": "1", "current": amount_from_summary(revenue_summary, "Revenue from Operations", "income"), "kind": "line indent"},
+        {"label": "Revenue from Operations", "note": "1", "current": amount_from_summary(revenue_summary, "Revenue from Operations", "income"), "previous": previous_amount("Revenue from Operations"), "kind": "line indent"},
         {"label": "II. Other Income", "kind": "section"},
-        {"label": "Other Income", "note": "2", "current": amount_from_summary(revenue_summary, "Other Income", "income"), "kind": "line indent"},
-        {"label": "III. Total Income", "current": total_revenue, "kind": "total"},
+        {"label": "Other Income", "note": "2", "current": amount_from_summary(revenue_summary, "Other Income", "income"), "previous": previous_amount("Other Income"), "kind": "line indent"},
+        {"label": "III. Total Income", "current": total_revenue, "previous": (sum(v for k,v in comparative_previous.items() if k in APPROVED_INCOME_HEADS) if comparative_previous else None), "kind": "total"},
         {"label": "IV. Expenses", "kind": "section"},
     ]
 
@@ -2507,14 +2726,15 @@ if st.session_state.get("prepared", False):
                 "label": head,
                 "note": str(note_no),
                 "current": amount,
+                "previous": previous_amount(head),
                 "kind": "line indent",
             })
             note_no += 1
 
     pnl_rows_display.extend([
-        {"label": "Total Expenses", "current": total_expenses, "kind": "total"},
+        {"label": "Total Expenses", "current": total_expenses, "previous": (sum(v for k,v in comparative_previous.items() if k in APPROVED_EXPENSE_HEADS and k != "Tax Expense") if comparative_previous else None), "kind": "total"},
         {"label": "Profit Before Tax", "current": profit_before_tax, "kind": "subtotal"},
-        {"label": "Tax Expense", "note": str(note_no), "current": tax_expense, "kind": "line indent"},
+        {"label": "Tax Expense", "note": str(note_no), "current": tax_expense, "previous": previous_amount("Tax Expense"), "kind": "line indent"},
         {"label": "Profit for the Period", "current": profit, "kind": "grand-total"},
     ])
 
@@ -2613,8 +2833,8 @@ if st.session_state.get("prepared", False):
     bs_rows_display = [
         {"label": "I. EQUITY AND LIABILITIES", "kind": "section"},
         {"label": "1. Shareholders' Funds", "kind": "subsection"},
-        {"label": "Share Capital", "note": "1", "current": share_capital, "kind": "line indent"},
-        {"label": "Other Equity", "note": "2", "current": other_equity, "kind": "line indent"},
+        {"label": "Share Capital", "note": "1", "current": share_capital, "previous": previous_amount("Share Capital"), "kind": "line indent"},
+        {"label": "Other Equity", "note": "2", "current": other_equity, "previous": (previous_amount("Other Equity") if previous_amount("Other Equity") is not None else previous_amount("Capital Account")), "kind": "line indent"},
         {"label": "2. Non-current Liabilities", "kind": "subsection"},
     ]
 
@@ -2622,14 +2842,14 @@ if st.session_state.get("prepared", False):
     for label, classifications in non_current_liability_groups:
         amount = group_amount(liability_summary, classifications)
         if abs(amount) > 0.005:
-            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
+            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "previous": (sum(previous_amount(c) or 0.0 for c in classifications) if comparative_previous else None), "kind": "line indent"})
             note_no += 1
 
     bs_rows_display.append({"label": "3. Current Liabilities", "kind": "subsection"})
     for label, classifications in current_liability_groups:
         amount = group_amount(liability_summary, classifications)
         if abs(amount) > 0.005:
-            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
+            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "previous": (sum(previous_amount(c) or 0.0 for c in classifications) if comparative_previous else None), "kind": "line indent"})
             note_no += 1
 
     bs_rows_display.append({"label": "Total Equity and Liabilities", "current": total_equity_and_liabilities, "kind": "grand-total"})
@@ -2639,14 +2859,14 @@ if st.session_state.get("prepared", False):
     for label, classifications in non_current_asset_groups:
         amount = group_amount(asset_summary, classifications)
         if abs(amount) > 0.005:
-            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
+            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "previous": (sum(previous_amount(c) or 0.0 for c in classifications) if comparative_previous else None), "kind": "line indent"})
             note_no += 1
 
     bs_rows_display.append({"label": "2. Current Assets", "kind": "subsection"})
     for label, classifications in current_asset_groups:
         amount = group_amount(asset_summary, classifications)
         if abs(amount) > 0.005:
-            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
+            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "previous": (sum(previous_amount(c) or 0.0 for c in classifications) if comparative_previous else None), "kind": "line indent"})
             note_no += 1
 
     bs_rows_display.append({"label": "Total Assets", "current": total_assets, "kind": "grand-total"})
@@ -2665,6 +2885,69 @@ if st.session_state.get("prepared", False):
         st.error(
             f"**Balance Sheet Tally Failed ❌** · Difference: {indian_currency(abs(balance_difference))}"
         )
+
+    # -----------------------------------------------------
+    # NOTES TO ACCOUNTS
+    # -----------------------------------------------------
+
+    st.divider()
+    st.markdown("## 📚 Notes to Accounts")
+    st.caption("Account-level composition behind the Schedule III-style line items shown above.")
+
+    note_definitions = [
+        ("1", "Share Capital", ["Share Capital"]),
+        ("2", "Other Equity", ["Other Equity", "Capital Account"]),
+    ]
+
+    for label, classifications in non_current_liability_groups:
+        amount = group_amount(liability_summary, classifications)
+        if abs(amount) > 0.005:
+            note_definitions.append((str(len(note_definitions) + 1), label, classifications))
+    for label, classifications in current_liability_groups:
+        amount = group_amount(liability_summary, classifications)
+        if abs(amount) > 0.005:
+            note_definitions.append((str(len(note_definitions) + 1), label, classifications))
+    for label, classifications in non_current_asset_groups:
+        amount = group_amount(asset_summary, classifications)
+        if abs(amount) > 0.005:
+            note_definitions.append((str(len(note_definitions) + 1), label, classifications))
+    for label, classifications in current_asset_groups:
+        amount = group_amount(asset_summary, classifications)
+        if abs(amount) > 0.005:
+            note_definitions.append((str(len(note_definitions) + 1), label, classifications))
+
+    # P&L notes are displayed first in the P&L, so provide their detailed composition too.
+    pnl_note_definitions = [
+        ("1", "Revenue from Operations", ["Revenue from Operations"]),
+        ("2", "Other Income", ["Other Income"]),
+    ]
+    pnl_note_no = 3
+    for head in pnl_order:
+        if abs(amount_from_summary(expense_summary, head, "expense")) > 0.005:
+            pnl_note_definitions.append((str(pnl_note_no), head, [head]))
+            pnl_note_no += 1
+    pnl_note_definitions.append((str(pnl_note_no), "Tax Expense", ["Tax Expense"]))
+
+    def render_note_table(note_no, title, classifications):
+        subset = results_df[results_df["Classification"].isin(classifications)].copy()
+        if not len(subset):
+            return
+        rows = []
+        for _, r in subset.iterrows():
+            net = float(r["Credit"] - r["Debit"]) if r["Classification"] in (APPROVED_INCOME_HEADS | APPROVED_LIABILITY_HEADS | APPROVED_EQUITY_HEADS) else float(r["Debit"] - r["Credit"])
+            rows.append({"Account": r["Account"], "Amount": net})
+        total = sum(r["Amount"] for r in rows)
+        st.markdown(f"**Note {note_no} — {title}**")
+        note_df = pd.DataFrame(rows)
+        note_df["Amount ₹"] = note_df["Amount"].map(indian_currency)
+        note_df = note_df[["Account", "Amount ₹"]]
+        st.dataframe(note_df, width="stretch", hide_index=True)
+        st.markdown(f"**Total — {indian_currency(total)}**")
+
+    for note_no, title, classifications in pnl_note_definitions:
+        render_note_table(note_no, title, classifications)
+    for note_no, title, classifications in note_definitions:
+        render_note_table(note_no, title, classifications)
 
     # -----------------------------------------------------
     # PRESENTATION NOTES
@@ -2775,6 +3058,9 @@ if st.session_state.get("prepared", False):
             "Generate an Excel working-paper package and a PDF presentation "
             "from the current validated results."
         )
+
+        revenue_ops = amount_from_summary(revenue_summary, "Revenue from Operations", "income")
+        other_income = amount_from_summary(revenue_summary, "Other Income", "income")
 
         export_pnl_rows = [
             ("I. Revenue from Operations", revenue_ops),
