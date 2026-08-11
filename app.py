@@ -1631,6 +1631,49 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# =========================================================
+# ACCOUNTRA — HIDE STREAMLIT BRANDING
+# =========================================================
+st.markdown(
+    """
+    <style>
+        /* Remove Streamlit footer */
+        footer {
+            visibility: hidden !important;
+            display: none !important;
+        }
+
+        /* Remove Streamlit top header/toolbar */
+        header {
+            visibility: hidden !important;
+            display: none !important;
+        }
+
+        /* Remove Streamlit toolbar */
+        [data-testid="stToolbar"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
+
+        /* Remove Streamlit decoration line */
+        [data-testid="stDecoration"] {
+            display: none !important;
+        }
+
+        /* Remove status/developer widget */
+        [data-testid="stStatusWidget"] {
+            display: none !important;
+        }
+
+        /* Remove Streamlit menu */
+        #MainMenu {
+            display: none !important;
+            visibility: hidden !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)    
 st.markdown(
     """
     <style>
