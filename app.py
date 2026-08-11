@@ -2353,783 +2353,793 @@ if st.session_state.get("prepared", False):
             "No accounts require manual review. ✅"
         )
 
-    # =====================================================
-    # SCHEDULE III — MODERN STATEMENT DISPLAY
-# =====================================================
-
-st.divider()
-st.markdown("## 5️⃣ Financial Statements")
-
-st.caption(
-    "Schedule III-style presentation with a separate amount column. "
-    "Previous-period figures are shown only when comparative data is supplied; otherwise they remain —."
-)
-
-pnl_df = results_df[results_df["Statement"] == "Profit & Loss"].copy()
-
-revenue_rows = pnl_df[pnl_df["Classification"].isin(APPROVED_INCOME_HEADS)]
-revenue_summary = (
-    revenue_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-    if len(revenue_rows)
-    else pd.DataFrame(columns=["Debit", "Credit"])
-)
-if len(revenue_summary):
-    revenue_summary["Net"] = revenue_summary["Credit"] - revenue_summary["Debit"]
-
-total_revenue = float(revenue_summary["Net"].sum()) if len(revenue_summary) else 0.0
-
-pre_tax_expense_heads = APPROVED_EXPENSE_HEADS - {"Tax Expense"}
-expense_rows = pnl_df[pnl_df["Classification"].isin(pre_tax_expense_heads)]
-expense_summary = (
-    expense_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-    if len(expense_rows)
-    else pd.DataFrame(columns=["Debit", "Credit"])
-)
-if len(expense_summary):
-    expense_summary["Net"] = expense_summary["Debit"] - expense_summary["Credit"]
-
-total_expenses = float(expense_summary["Net"].sum()) if len(expense_summary) else 0.0
-
-tax_rows = pnl_df[pnl_df["Classification"] == "Tax Expense"]
-tax_summary = (
-    tax_rows[["Debit", "Credit"]].sum()
-    if len(tax_rows)
-    else pd.Series({"Debit": 0.0, "Credit": 0.0})
-)
-tax_expense = max(0.0, float(tax_summary["Debit"] - tax_summary["Credit"]))
-profit_before_tax = total_revenue - total_expenses
-profit = profit_before_tax - tax_expense
-
-
-def amount_from_summary(summary, head, sign="net"):
-    if head not in summary.index:
-        return 0.0
-    if sign == "income":
-        return float(summary.loc[head, "Credit"] - summary.loc[head, "Debit"])
-    if sign == "expense":
-        return float(summary.loc[head, "Debit"] - summary.loc[head, "Credit"])
-    return float(summary.loc[head, "Net"])
-
-
-def render_statement_table(title, subtitle, rows):
-    html_rows = []
-    for row in rows:
-        kind = row.get("kind", "line")
-        label = row.get("label", "")
-        note = row.get("note", "")
-        current = row.get("current")
-        previous = row.get("previous")
-
-        if current is None:
-            current_html = ""
-        else:
-            current_html = indian_currency(current)
-
-        if previous is None:
-            previous_html = "—"
-        else:
-            previous_html = indian_currency(previous)
-
-        cls = f"fs-row {kind}"
-        html_rows.append(
-            f"<tr class='{cls}'>"
-            f"<td class='particular'>{label}</td>"
-            f"<td class='note'>{note}</td>"
-            f"<td class='amount'>{current_html}</td>"
-            f"<td class='amount'>{previous_html}</td>"
-            f"</tr>"
-        )
-
-    st.markdown(
-        f"""
-        <div class='statement-card'>
-            <div class='statement-head'>
-                <div class='statement-title'>{title}</div>
-                <div class='statement-subtitle'>{company_name} · {subtitle}</div>
-            </div>
-            <div class='statement-scroll'>
-                <table class='statement-table'>
-                    <thead>
-                        <tr>
-                            <th>Particulars</th>
-                            <th class='note'>Note No.</th>
-                            <th class='amount'>Current Period ₹</th>
-                            <th class='amount'>Previous Period ₹</th>
-                        </tr>
-                    </thead>
-                    <tbody>{''.join(html_rows)}</tbody>
-                </table>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# -----------------------------------------------------
-# P&L
-# -----------------------------------------------------
-
-pnl_rows_display = [
-    {"label": "I. Revenue from Operations", "kind": "section"},
-    {"label": "Revenue from Operations", "note": "1", "current": amount_from_summary(revenue_summary, "Revenue from Operations", "income"), "kind": "line indent"},
-    {"label": "II. Other Income", "kind": "section"},
-    {"label": "Other Income", "note": "2", "current": amount_from_summary(revenue_summary, "Other Income", "income"), "kind": "line indent"},
-    {"label": "III. Total Income", "current": total_revenue, "kind": "total"},
-    {"label": "IV. Expenses", "kind": "section"},
-]
-
-pnl_order = [
-    "Cost of Materials Consumed",
-    "Purchases",
-    "Changes in Inventories",
-    "Employee Benefits Expense",
-    "Finance Costs",
-    "Depreciation & Amortisation",
-    "Other Expenses",
-]
-
-note_no = 3
-for head in pnl_order:
-    amount = amount_from_summary(expense_summary, head, "expense")
-    if abs(amount) > 0.005:
-        pnl_rows_display.append({
-            "label": head,
-            "note": str(note_no),
-            "current": amount,
-            "kind": "line indent",
-        })
-        note_no += 1
-
-pnl_rows_display.extend([
-    {"label": "Total Expenses", "current": total_expenses, "kind": "total"},
-    {"label": "Profit Before Tax", "current": profit_before_tax, "kind": "subtotal"},
-    {"label": "Tax Expense", "note": str(note_no), "current": tax_expense, "kind": "line indent"},
-    {"label": "Profit for the Period", "current": profit, "kind": "grand-total"},
-])
-
-st.markdown("### 📑 Statement of Profit & Loss")
-render_statement_table(
-    "STATEMENT OF PROFIT & LOSS",
-    f"For the period ended {reporting_date.strftime('%d %B %Y')}",
-    pnl_rows_display,
-)
-
-# -----------------------------------------------------
-# BALANCE SHEET SUMMARIES
-# -----------------------------------------------------
-
-asset_rows = results_df[results_df["Classification"].isin(APPROVED_ASSET_HEADS)]
-asset_summary = (
-    asset_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-    if len(asset_rows)
-    else pd.DataFrame(columns=["Debit", "Credit"])
-)
-if len(asset_summary):
-    asset_summary["Net"] = asset_summary["Debit"] - asset_summary["Credit"]
-
-total_assets = float(asset_summary["Net"].sum()) if len(asset_summary) else 0.0
-
-liability_rows = results_df[results_df["Classification"].isin(APPROVED_LIABILITY_HEADS)]
-liability_summary = (
-    liability_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-    if len(liability_rows)
-    else pd.DataFrame(columns=["Debit", "Credit"])
-)
-if len(liability_summary):
-    liability_summary["Net"] = liability_summary["Credit"] - liability_summary["Debit"]
-
-total_liabilities = float(liability_summary["Net"].sum()) if len(liability_summary) else 0.0
-
-equity_rows = results_df[results_df["Classification"].isin(APPROVED_EQUITY_HEADS)]
-equity_summary = (
-    equity_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-    if len(equity_rows)
-    else pd.DataFrame(columns=["Debit", "Credit"])
-)
-if len(equity_summary):
-    equity_summary["Net"] = equity_summary["Credit"] - equity_summary["Debit"]
-
-total_equity = float(equity_summary["Net"].sum()) if len(equity_summary) else 0.0
-
-total_equity_and_liabilities = total_equity + profit + total_liabilities
-
-non_current_asset_groups = [
-    ("Property, Plant and Equipment", ["PPE"]),
-    ("Intangible Assets", ["Intangible Assets"]),
-    ("Capital Work-in-Progress", ["Capital Work-in-Progress"]),
-    ("Intangible Assets under Development", ["Intangible Assets Under Development"]),
-    ("Investment Property", ["Investment Property"]),
-    ("Non-current Investments", ["Investments"]),
-    ("Other Non-current Assets", ["Other Non-current Assets"]),
-]
-current_asset_groups = [
-    ("Inventories", ["Inventories"]),
-    ("Trade Receivables", ["Trade Receivables"]),
-    ("Cash and Cash Equivalents", ["Cash & Cash Equivalents"]),
-    ("Other Current Assets", ["Other Current Assets"]),
-]
-non_current_liability_groups = [
-    ("Long-term Borrowings", ["Non-current Borrowings"]),
-    ("Other Long-term Liabilities", ["Other Non-current Liabilities"]),
-]
-current_liability_groups = [
-    ("Short-term Borrowings", ["Current Borrowings"]),
-    ("Trade Payables", ["Trade Payables"]),
-    ("Other Current Liabilities", ["Other Current Liabilities"]),
-    ("Short-term Provisions", ["Provisions"]),
-]
-
-def group_amount(summary, classifications):
-    total = 0.0
-    for classification in classifications:
-        if classification in summary.index:
-            total += float(summary.loc[classification, "Net"])
-    return total
-
-share_capital = group_amount(equity_summary, ["Share Capital"])
-other_equity = group_amount(equity_summary, ["Other Equity", "Capital Account"])
-shareholders_funds = share_capital + other_equity
-
-non_current_liability_total = sum(group_amount(liability_summary, c) for _, c in non_current_liability_groups)
-current_liability_total = sum(group_amount(liability_summary, c) for _, c in current_liability_groups)
-non_current_asset_total = sum(group_amount(asset_summary, c) for _, c in non_current_asset_groups)
-current_asset_total = sum(group_amount(asset_summary, c) for _, c in current_asset_groups)
-
-# -----------------------------------------------------
-# BALANCE SHEET
-# -----------------------------------------------------
-
-bs_rows_display = [
-    {"label": "I. EQUITY AND LIABILITIES", "kind": "section"},
-    {"label": "1. Shareholders' Funds", "kind": "subsection"},
-    {"label": "Share Capital", "note": "1", "current": share_capital, "kind": "line indent"},
-    {"label": "Other Equity", "note": "2", "current": other_equity, "kind": "line indent"},
-    {"label": "2. Non-current Liabilities", "kind": "subsection"},
-]
-
-note_no = 3
-for label, classifications in non_current_liability_groups:
-    amount = group_amount(liability_summary, classifications)
-    if abs(amount) > 0.005:
-        bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
-        note_no += 1
-
-bs_rows_display.append({"label": "3. Current Liabilities", "kind": "subsection"})
-for label, classifications in current_liability_groups:
-    amount = group_amount(liability_summary, classifications)
-    if abs(amount) > 0.005:
-        bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
-        note_no += 1
-
-bs_rows_display.append({"label": "Total Equity and Liabilities", "current": total_equity_and_liabilities, "kind": "grand-total"})
-bs_rows_display.append({"label": "II. ASSETS", "kind": "section"})
-bs_rows_display.append({"label": "1. Non-current Assets", "kind": "subsection"})
-
-for label, classifications in non_current_asset_groups:
-    amount = group_amount(asset_summary, classifications)
-    if abs(amount) > 0.005:
-        bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
-        note_no += 1
-
-bs_rows_display.append({"label": "2. Current Assets", "kind": "subsection"})
-for label, classifications in current_asset_groups:
-    amount = group_amount(asset_summary, classifications)
-    if abs(amount) > 0.005:
-        bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
-        note_no += 1
-
-bs_rows_display.append({"label": "Total Assets", "current": total_assets, "kind": "grand-total"})
-
-st.markdown("### 📊 Balance Sheet")
-render_statement_table(
-    "BALANCE SHEET",
-    f"As at {reporting_date.strftime('%d %B %Y')}",
-    bs_rows_display,
-)
-
-balance_difference = total_assets - total_equity_and_liabilities
-if abs(balance_difference) < 0.01:
-    st.success(f"**Balance Sheet Tally ✅** · Difference: {indian_currency(0)}")
-else:
-    st.error(
-        f"**Balance Sheet Tally Failed ❌** · Difference: {indian_currency(abs(balance_difference))}"
-    )
-
-# -----------------------------------------------------
-# PRESENTATION NOTES
-# -----------------------------------------------------
-
-st.divider()
-st.markdown("## 📝 Presentation Notes")
-
-presentation_notes = []
-if "Investments" in results_df["Classification"].values:
-    presentation_notes.append(
-        "Investments are displayed under Non-current Investments by default. Current/non-current classification should be confirmed when the Trial Balance does not provide the required facts."
-    )
-if "Provisions" in results_df["Classification"].values:
-    presentation_notes.append(
-        "Provisions are displayed under Short-term Provisions by default because the current classification engine does not yet capture a separate long-term provision head."
-    )
-if "Capital Account" in results_df["Classification"].values:
-    presentation_notes.append(
-        "Capital Account is presented within Shareholders' Funds / Other Equity for this Schedule III-style layout."
-    )
-if not presentation_notes:
-    presentation_notes.append(
-        "No additional Schedule III presentation assumptions were detected."
-    )
-for note in presentation_notes:
-    st.info(f"ℹ️ {note}")
-
-# 7️⃣ REVIEW & AUDIT INSIGHTS
+        # =====================================================
+        # SCHEDULE III — MODERN STATEMENT DISPLAY
     # =====================================================
 
     st.divider()
-    st.markdown("## 🔎 Review & Audit Insights")
-
-    low_confidence = results_df[
-        pd.to_numeric(
-            results_df["Confidence"],
-            errors="coerce",
-        ).fillna(0) < 0.80
-    ].copy()
-
-    missing_info = results_df[
-        results_df["Missing Information"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .ne("")
-    ].copy()
-
-    unusual_balance_rows = results_df[
-        (
-            results_df["Nature"].isin(
-                {"Liability", "Equity", "Income"}
-            )
-        )
-        &
-        (
-            results_df["Debit"].abs() > 0.01
-        )
-    ].copy()
-
-    insight_cols = st.columns(3)
-
-    with insight_cols[0]:
-        st.metric(
-            "Accounts Reviewed",
-            len(results_df),
-        )
-
-    with insight_cols[1]:
-        st.metric(
-            "Low Confidence",
-            len(low_confidence),
-        )
-
-    with insight_cols[2]:
-        st.metric(
-            "Missing Information",
-            len(missing_info),
-        )
-
-    if len(low_confidence):
-        st.warning(
-            f"{len(low_confidence)} account(s) have confidence below 80%. "
-            "Review these before final use."
-        )
-
-    if len(missing_info):
-        st.info(
-            f"{len(missing_info)} account(s) have missing-information flags."
-        )
-
-    if len(unusual_balance_rows):
-        st.info(
-            f"{len(unusual_balance_rows)} account(s) have debit balances "
-            "despite being classified as liability/equity/income heads. "
-            "These may represent contra or adjustment balances."
-        )
-
-    # =====================================================
-    # 8️⃣ EXPORTS
-    # =====================================================
-
-    st.divider()
-    st.markdown("## 📥 Export Financial Statements")
+    st.markdown("## 5️⃣ Financial Statements")
 
     st.caption(
-        "Generate an Excel working-paper package and a PDF presentation "
-        "from the current validated results."
+        "Schedule III-style presentation with a separate amount column. "
+        "Previous-period figures are shown only when comparative data is supplied; otherwise they remain —."
     )
 
-    export_pnl_rows = [
-        ("I. Revenue from Operations", revenue_ops),
-        ("II. Other Income", other_income),
-        ("III. Total Revenue", total_revenue),
-    ]
+    pnl_df = results_df[results_df["Statement"] == "Profit & Loss"].copy()
 
-    for head in pnl_order:
-        amount = (
-            float(expense_summary.loc[head, "Net"])
-            if head in expense_summary.index
-            else 0.0
-        )
-        if abs(amount) > 0.005:
-            export_pnl_rows.append(
-                (head, indian_currency(amount))
+    revenue_rows = pnl_df[pnl_df["Classification"].isin(APPROVED_INCOME_HEADS)]
+    revenue_summary = (
+        revenue_rows.groupby("Classification")[["Debit", "Credit"]].sum()
+        if len(revenue_rows)
+        else pd.DataFrame(columns=["Debit", "Credit"])
+    )
+    if len(revenue_summary):
+        revenue_summary["Net"] = revenue_summary["Credit"] - revenue_summary["Debit"]
+
+    revenue_ops = (
+        float(revenue_summary.loc["Revenue from Operations", "Credit"]
+              - revenue_summary.loc["Revenue from Operations", "Debit"])
+        if "Revenue from Operations" in revenue_summary.index else 0.0
+    )
+    other_income = (
+        float(revenue_summary.loc["Other Income", "Credit"]
+              - revenue_summary.loc["Other Income", "Debit"])
+        if "Other Income" in revenue_summary.index else 0.0
+    )
+    total_revenue = float(revenue_summary["Net"].sum()) if len(revenue_summary) else 0.0
+
+    pre_tax_expense_heads = APPROVED_EXPENSE_HEADS - {"Tax Expense"}
+    expense_rows = pnl_df[pnl_df["Classification"].isin(pre_tax_expense_heads)]
+    expense_summary = (
+        expense_rows.groupby("Classification")[["Debit", "Credit"]].sum()
+        if len(expense_rows)
+        else pd.DataFrame(columns=["Debit", "Credit"])
+    )
+    if len(expense_summary):
+        expense_summary["Net"] = expense_summary["Debit"] - expense_summary["Credit"]
+
+    total_expenses = float(expense_summary["Net"].sum()) if len(expense_summary) else 0.0
+
+    tax_rows = pnl_df[pnl_df["Classification"] == "Tax Expense"]
+    tax_summary = (
+        tax_rows[["Debit", "Credit"]].sum()
+        if len(tax_rows)
+        else pd.Series({"Debit": 0.0, "Credit": 0.0})
+    )
+    tax_expense = max(0.0, float(tax_summary["Debit"] - tax_summary["Credit"]))
+    profit_before_tax = total_revenue - total_expenses
+    profit = profit_before_tax - tax_expense
+
+
+    def amount_from_summary(summary, head, sign="net"):
+        if head not in summary.index:
+            return 0.0
+        if sign == "income":
+            return float(summary.loc[head, "Credit"] - summary.loc[head, "Debit"])
+        if sign == "expense":
+            return float(summary.loc[head, "Debit"] - summary.loc[head, "Credit"])
+        return float(summary.loc[head, "Net"])
+
+
+    def render_statement_table(title, subtitle, rows):
+        html_rows = []
+        for row in rows:
+            kind = row.get("kind", "line")
+            label = row.get("label", "")
+            note = row.get("note", "")
+            current = row.get("current")
+            previous = row.get("previous")
+
+            if current is None:
+                current_html = ""
+            else:
+                current_html = indian_currency(current)
+
+            if previous is None:
+                previous_html = "—"
+            else:
+                previous_html = indian_currency(previous)
+
+            cls = f"fs-row {kind}"
+            html_rows.append(
+                f"<tr class='{cls}'>"
+                f"<td class='particular'>{label}</td>"
+                f"<td class='note'>{note}</td>"
+                f"<td class='amount'>{current_html}</td>"
+                f"<td class='amount'>{previous_html}</td>"
+                f"</tr>"
             )
 
-    export_pnl_rows.extend([
-        ("Total Expenses", total_expenses),
-        ("Profit Before Tax", profit_before_tax),
-        ("Tax Expense", tax_expense),
-        ("Profit for the Period", profit),
-    ])
+        st.markdown(
+            f"""
+            <div class='statement-card'>
+                <div class='statement-head'>
+                    <div class='statement-title'>{title}</div>
+                    <div class='statement-subtitle'>{company_name} · {subtitle}</div>
+                </div>
+                <div class='statement-scroll'>
+                    <table class='statement-table'>
+                        <thead>
+                            <tr>
+                                <th>Particulars</th>
+                                <th class='note'>Note No.</th>
+                                <th class='amount'>Current Period ₹</th>
+                                <th class='amount'>Previous Period ₹</th>
+                            </tr>
+                        </thead>
+                        <tbody>{''.join(html_rows)}</tbody>
+                    </table>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    export_bs_rows = [
-        ("I. EQUITY AND LIABILITIES", ""),
-        ("1. Shareholders' Funds", ""),
-        ("Share Capital", indian_currency(share_capital)),
-        ("Reserves and Surplus / Other Equity", indian_currency(other_equity)),
-        ("Total Shareholders' Funds", indian_currency(shareholders_funds)),
-        ("2. Non-current Liabilities", ""),
+
+    # -----------------------------------------------------
+    # P&L
+    # -----------------------------------------------------
+
+    pnl_rows_display = [
+        {"label": "I. Revenue from Operations", "kind": "section"},
+        {"label": "Revenue from Operations", "note": "1", "current": amount_from_summary(revenue_summary, "Revenue from Operations", "income"), "kind": "line indent"},
+        {"label": "II. Other Income", "kind": "section"},
+        {"label": "Other Income", "note": "2", "current": amount_from_summary(revenue_summary, "Other Income", "income"), "kind": "line indent"},
+        {"label": "III. Total Income", "current": total_revenue, "kind": "total"},
+        {"label": "IV. Expenses", "kind": "section"},
     ]
 
+    pnl_order = [
+        "Cost of Materials Consumed",
+        "Purchases",
+        "Changes in Inventories",
+        "Employee Benefits Expense",
+        "Finance Costs",
+        "Depreciation & Amortisation",
+        "Other Expenses",
+    ]
+
+    note_no = 3
+    for head in pnl_order:
+        amount = amount_from_summary(expense_summary, head, "expense")
+        if abs(amount) > 0.005:
+            pnl_rows_display.append({
+                "label": head,
+                "note": str(note_no),
+                "current": amount,
+                "kind": "line indent",
+            })
+            note_no += 1
+
+    pnl_rows_display.extend([
+        {"label": "Total Expenses", "current": total_expenses, "kind": "total"},
+        {"label": "Profit Before Tax", "current": profit_before_tax, "kind": "subtotal"},
+        {"label": "Tax Expense", "note": str(note_no), "current": tax_expense, "kind": "line indent"},
+        {"label": "Profit for the Period", "current": profit, "kind": "grand-total"},
+    ])
+
+    st.markdown("### 📑 Statement of Profit & Loss")
+    render_statement_table(
+        "STATEMENT OF PROFIT & LOSS",
+        f"For the period ended {reporting_date.strftime('%d %B %Y')}",
+        pnl_rows_display,
+    )
+
+    # -----------------------------------------------------
+    # BALANCE SHEET SUMMARIES
+    # -----------------------------------------------------
+
+    asset_rows = results_df[results_df["Classification"].isin(APPROVED_ASSET_HEADS)]
+    asset_summary = (
+        asset_rows.groupby("Classification")[["Debit", "Credit"]].sum()
+        if len(asset_rows)
+        else pd.DataFrame(columns=["Debit", "Credit"])
+    )
+    if len(asset_summary):
+        asset_summary["Net"] = asset_summary["Debit"] - asset_summary["Credit"]
+
+    total_assets = float(asset_summary["Net"].sum()) if len(asset_summary) else 0.0
+
+    liability_rows = results_df[results_df["Classification"].isin(APPROVED_LIABILITY_HEADS)]
+    liability_summary = (
+        liability_rows.groupby("Classification")[["Debit", "Credit"]].sum()
+        if len(liability_rows)
+        else pd.DataFrame(columns=["Debit", "Credit"])
+    )
+    if len(liability_summary):
+        liability_summary["Net"] = liability_summary["Credit"] - liability_summary["Debit"]
+
+    total_liabilities = float(liability_summary["Net"].sum()) if len(liability_summary) else 0.0
+
+    equity_rows = results_df[results_df["Classification"].isin(APPROVED_EQUITY_HEADS)]
+    equity_summary = (
+        equity_rows.groupby("Classification")[["Debit", "Credit"]].sum()
+        if len(equity_rows)
+        else pd.DataFrame(columns=["Debit", "Credit"])
+    )
+    if len(equity_summary):
+        equity_summary["Net"] = equity_summary["Credit"] - equity_summary["Debit"]
+
+    total_equity = float(equity_summary["Net"].sum()) if len(equity_summary) else 0.0
+
+    total_equity_and_liabilities = total_equity + profit + total_liabilities
+
+    non_current_asset_groups = [
+        ("Property, Plant and Equipment", ["PPE"]),
+        ("Intangible Assets", ["Intangible Assets"]),
+        ("Capital Work-in-Progress", ["Capital Work-in-Progress"]),
+        ("Intangible Assets under Development", ["Intangible Assets Under Development"]),
+        ("Investment Property", ["Investment Property"]),
+        ("Non-current Investments", ["Investments"]),
+        ("Other Non-current Assets", ["Other Non-current Assets"]),
+    ]
+    current_asset_groups = [
+        ("Inventories", ["Inventories"]),
+        ("Trade Receivables", ["Trade Receivables"]),
+        ("Cash and Cash Equivalents", ["Cash & Cash Equivalents"]),
+        ("Other Current Assets", ["Other Current Assets"]),
+    ]
+    non_current_liability_groups = [
+        ("Long-term Borrowings", ["Non-current Borrowings"]),
+        ("Other Long-term Liabilities", ["Other Non-current Liabilities"]),
+    ]
+    current_liability_groups = [
+        ("Short-term Borrowings", ["Current Borrowings"]),
+        ("Trade Payables", ["Trade Payables"]),
+        ("Other Current Liabilities", ["Other Current Liabilities"]),
+        ("Short-term Provisions", ["Provisions"]),
+    ]
+
+    def group_amount(summary, classifications):
+        total = 0.0
+        for classification in classifications:
+            if classification in summary.index:
+                total += float(summary.loc[classification, "Net"])
+        return total
+
+    share_capital = group_amount(equity_summary, ["Share Capital"])
+    other_equity = group_amount(equity_summary, ["Other Equity", "Capital Account"])
+    shareholders_funds = share_capital + other_equity
+
+    non_current_liability_total = sum(group_amount(liability_summary, c) for _, c in non_current_liability_groups)
+    current_liability_total = sum(group_amount(liability_summary, c) for _, c in current_liability_groups)
+    non_current_asset_total = sum(group_amount(asset_summary, c) for _, c in non_current_asset_groups)
+    current_asset_total = sum(group_amount(asset_summary, c) for _, c in current_asset_groups)
+
+    # -----------------------------------------------------
+    # BALANCE SHEET
+    # -----------------------------------------------------
+
+    bs_rows_display = [
+        {"label": "I. EQUITY AND LIABILITIES", "kind": "section"},
+        {"label": "1. Shareholders' Funds", "kind": "subsection"},
+        {"label": "Share Capital", "note": "1", "current": share_capital, "kind": "line indent"},
+        {"label": "Other Equity", "note": "2", "current": other_equity, "kind": "line indent"},
+        {"label": "2. Non-current Liabilities", "kind": "subsection"},
+    ]
+
+    note_no = 3
     for label, classifications in non_current_liability_groups:
         amount = group_amount(liability_summary, classifications)
         if abs(amount) > 0.005:
-            export_bs_rows.append(
-                (label, amount)
-            )
+            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
+            note_no += 1
 
-    export_bs_rows.extend([
-        ("Total Non-current Liabilities",
-         non_current_liability_total),
-        ("3. Current Liabilities", ""),
-    ])
-
+    bs_rows_display.append({"label": "3. Current Liabilities", "kind": "subsection"})
     for label, classifications in current_liability_groups:
         amount = group_amount(liability_summary, classifications)
         if abs(amount) > 0.005:
-            export_bs_rows.append(
-                (label, amount)
-            )
+            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
+            note_no += 1
 
-    export_bs_rows.extend([
-        ("Total Current Liabilities",
-         current_liability_total),
-        ("Total Equity and Liabilities",
-         total_equity_and_liabilities),
-        ("II. ASSETS", ""),
-        ("1. Non-current Assets", ""),
-    ])
+    bs_rows_display.append({"label": "Total Equity and Liabilities", "current": total_equity_and_liabilities, "kind": "grand-total"})
+    bs_rows_display.append({"label": "II. ASSETS", "kind": "section"})
+    bs_rows_display.append({"label": "1. Non-current Assets", "kind": "subsection"})
 
     for label, classifications in non_current_asset_groups:
         amount = group_amount(asset_summary, classifications)
         if abs(amount) > 0.005:
-            export_bs_rows.append(
-                (label, amount)
-            )
+            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
+            note_no += 1
 
-    export_bs_rows.extend([
-        ("Total Non-current Assets",
-         non_current_asset_total),
-        ("2. Current Assets", ""),
-    ])
-
+    bs_rows_display.append({"label": "2. Current Assets", "kind": "subsection"})
     for label, classifications in current_asset_groups:
         amount = group_amount(asset_summary, classifications)
         if abs(amount) > 0.005:
-            export_bs_rows.append(
-                (label, amount)
-            )
+            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "kind": "line indent"})
+            note_no += 1
 
-    export_bs_rows.extend([
-        ("Total Current Assets",
-         current_asset_total),
-        ("Total Assets", total_assets),
-    ])
+    bs_rows_display.append({"label": "Total Assets", "current": total_assets, "kind": "grand-total"})
 
-    # =====================================================
-    # NOTES TO ACCOUNTS
-    # =====================================================
-
-    notes_rows = []
-
-    notes_rows.append((
-        "Basis of preparation",
-        "Financial statements are generated from the uploaded Trial Balance "
-        "using deterministic accounting rules with AI fallback for "
-        "unrecognized accounts."
-    ))
-
-    notes_rows.append((
-        "Schedule III presentation",
-        "The primary statements use a Schedule III-style hierarchy. "
-        "Required statutory notes and disclosures should be reviewed "
-        "before filing."
-    ))
-
-    if len(low_confidence):
-        notes_rows.append((
-            "Low-confidence classifications",
-            f"{len(low_confidence)} account(s) have confidence below 80%."
-        ))
-
-    if len(missing_info):
-        notes_rows.append((
-            "Missing information",
-            f"{len(missing_info)} account(s) contain missing-information flags."
-        ))
-
-    if "Inventories" in results_df["Classification"].values:
-        notes_rows.append((
-            "Inventories",
-            "Inventory balances are presented under Current Assets. "
-            "Opening/closing inventory treatment should be reviewed against "
-            "the entity's accounting policy and adjusted Trial Balance."
-        ))
-
-    if "Borrowings" in results_df["Classification"].values:
-        notes_rows.append((
-            "Borrowings",
-            "Current/non-current presentation depends on contractual "
-            "maturity and repayment terms where those facts are not "
-            "available from the Trial Balance."
-        ))
-
-    notes_rows.append((
-        "Statutory review",
-        "This application is an AI-assisted preparation tool and does not "
-        "replace professional review, applicable accounting standards, "
-        "company-specific disclosures or statutory filing requirements."
-    ))
-
-    # Validation rows are built after the checks below.
-
-
-    # =====================================================
-    # FINAL VALIDATION
-    # =====================================================
-
-    st.divider()
-    st.markdown("## 9️⃣ Final Validation")
-
-    tb_balanced = (
-        abs(difference) < 0.01
+    st.markdown("### 📊 Balance Sheet")
+    render_statement_table(
+        "BALANCE SHEET",
+        f"As at {reporting_date.strftime('%d %B %Y')}",
+        bs_rows_display,
     )
 
-    bs_balanced = (
-        abs(balance_difference) < 0.01
-    )
-
-    approved_classifications = (
-        results_df["Classification"]
-        .isin(APPROVED_HEADS)
-    )
-
-    invalid_classification_count = int(
-        (~approved_classifications).sum()
-    )
-
-    review_count = int(
-        results_df["Ambiguous"]
-        .fillna(True)
-        .sum()
-    )
-
-    numeric_data_ok = (
-        pd.api.types.is_numeric_dtype(
-            results_df["Debit"]
-        )
-        and
-        pd.api.types.is_numeric_dtype(
-            results_df["Credit"]
-        )
-    )
-
-    pnl_reconciles = abs(
-        total_revenue
-        - total_expenses
-        - tax_expense
-        - profit
-    ) < 0.01
-
-    validation_checks = [
-        (
-            "Trial Balance balances",
-            tb_balanced,
-        ),
-        (
-            "All account classifications are approved",
-            invalid_classification_count == 0,
-        ),
-        (
-            "Debit and Credit values are numeric",
-            numeric_data_ok,
-        ),
-        (
-            "Profit & Loss reconciles",
-            pnl_reconciles,
-        ),
-        (
-            "Balance Sheet Tally",
-            bs_balanced,
-        ),
-        (
-            "No accounts require manual review",
-            review_count == 0,
-        ),
-    ]
-
-    passed_count = sum(
-        bool(passed)
-        for _, passed in validation_checks
-    )
-
-    st.metric(
-        "Validation Score",
-        f"{passed_count}/{len(validation_checks)} checks passed",
-    )
-
-    validation_cols = st.columns(2)
-
-    for index, (
-        check_name,
-        passed,
-    ) in enumerate(validation_checks):
-
-        with validation_cols[index % 2]:
-
-            if passed:
-
-                st.success(
-                    f"✅ {check_name}"
-                )
-
-            else:
-
-                st.warning(
-                    f"⚠️ {check_name}"
-                )
-
-    if invalid_classification_count > 0:
-
+    balance_difference = total_assets - total_equity_and_liabilities
+    if abs(balance_difference) < 0.01:
+        st.success(f"**Balance Sheet Tally ✅** · Difference: {indian_currency(0)}")
+    else:
         st.error(
-            f"{invalid_classification_count} account(s) "
-            "have an unapproved classification."
+            f"**Balance Sheet Tally Failed ❌** · Difference: {indian_currency(abs(balance_difference))}"
         )
 
-    if review_count > 0:
+    # -----------------------------------------------------
+    # PRESENTATION NOTES
+    # -----------------------------------------------------
 
-        st.info(
-            f"{review_count} account(s) still require manual review. "
-            "The statements can be viewed, but the validation is "
-            "not fully complete."
+    st.divider()
+    st.markdown("## 📝 Presentation Notes")
+
+    presentation_notes = []
+    if "Investments" in results_df["Classification"].values:
+        presentation_notes.append(
+            "Investments are displayed under Non-current Investments by default. Current/non-current classification should be confirmed when the Trial Balance does not provide the required facts."
         )
-
-    all_core_checks_pass = (
-        tb_balanced
-        and bs_balanced
-        and pnl_reconciles
-        and invalid_classification_count == 0
-        and numeric_data_ok
-    )
-
-    if all_core_checks_pass and review_count == 0:
-
-        st.success(
-            "🎉 Financial statements passed all validation checks."
+    if "Provisions" in results_df["Classification"].values:
+        presentation_notes.append(
+            "Provisions are displayed under Short-term Provisions by default because the current classification engine does not yet capture a separate long-term provision head."
         )
-
-    elif all_core_checks_pass:
-
-        st.warning(
-            "Financial statements balance, but manual review "
-            "is still pending."
+    if "Capital Account" in results_df["Classification"].values:
+        presentation_notes.append(
+            "Capital Account is presented within Shareholders' Funds / Other Equity for this Schedule III-style layout."
         )
+    if not presentation_notes:
+        presentation_notes.append(
+            "No additional Schedule III presentation assumptions were detected."
+        )
+    for note in presentation_notes:
+        st.info(f"ℹ️ {note}")
 
+    # 7️⃣ REVIEW & AUDIT INSIGHTS
+        # =====================================================
 
-    # =====================================================
-    # BUILD EXPORT VALIDATION DATA
-    # =====================================================
+        st.divider()
+        st.markdown("## 🔎 Review & Audit Insights")
 
-    validation_rows = []
+        low_confidence = results_df[
+            pd.to_numeric(
+                results_df["Confidence"],
+                errors="coerce",
+            ).fillna(0) < 0.80
+        ].copy()
 
-    for check_name, passed in validation_checks:
-        validation_rows.append(
+        missing_info = results_df[
+            results_df["Missing Information"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .ne("")
+        ].copy()
+
+        unusual_balance_rows = results_df[
             (
-                check_name,
-                "PASS" if passed else "REVIEW",
-                "Passed" if passed else "Requires attention",
+                results_df["Nature"].isin(
+                    {"Liability", "Equity", "Income"}
+                )
+            )
+            &
+            (
+                results_df["Debit"].abs() > 0.01
+            )
+        ].copy()
+
+        insight_cols = st.columns(3)
+
+        with insight_cols[0]:
+            st.metric(
+                "Accounts Reviewed",
+                len(results_df),
+            )
+
+        with insight_cols[1]:
+            st.metric(
+                "Low Confidence",
+                len(low_confidence),
+            )
+
+        with insight_cols[2]:
+            st.metric(
+                "Missing Information",
+                len(missing_info),
+            )
+
+        if len(low_confidence):
+            st.warning(
+                f"{len(low_confidence)} account(s) have confidence below 80%. "
+                "Review these before final use."
+            )
+
+        if len(missing_info):
+            st.info(
+                f"{len(missing_info)} account(s) have missing-information flags."
+            )
+
+        if len(unusual_balance_rows):
+            st.info(
+                f"{len(unusual_balance_rows)} account(s) have debit balances "
+                "despite being classified as liability/equity/income heads. "
+                "These may represent contra or adjustment balances."
+            )
+
+        # =====================================================
+        # 8️⃣ EXPORTS
+        # =====================================================
+
+        st.divider()
+        st.markdown("## 📥 Export Financial Statements")
+
+        st.caption(
+            "Generate an Excel working-paper package and a PDF presentation "
+            "from the current validated results."
+        )
+
+        export_pnl_rows = [
+            ("I. Revenue from Operations", revenue_ops),
+            ("II. Other Income", other_income),
+            ("III. Total Revenue", total_revenue),
+        ]
+
+        for head in pnl_order:
+            amount = (
+                float(expense_summary.loc[head, "Net"])
+                if head in expense_summary.index
+                else 0.0
+            )
+            if abs(amount) > 0.005:
+                export_pnl_rows.append(
+                    (head, indian_currency(amount))
+                )
+
+        export_pnl_rows.extend([
+            ("Total Expenses", total_expenses),
+            ("Profit Before Tax", profit_before_tax),
+            ("Tax Expense", tax_expense),
+            ("Profit for the Period", profit),
+        ])
+
+        export_bs_rows = [
+            ("I. EQUITY AND LIABILITIES", ""),
+            ("1. Shareholders' Funds", ""),
+            ("Share Capital", indian_currency(share_capital)),
+            ("Reserves and Surplus / Other Equity", indian_currency(other_equity)),
+            ("Total Shareholders' Funds", indian_currency(shareholders_funds)),
+            ("2. Non-current Liabilities", ""),
+        ]
+
+        for label, classifications in non_current_liability_groups:
+            amount = group_amount(liability_summary, classifications)
+            if abs(amount) > 0.005:
+                export_bs_rows.append(
+                    (label, amount)
+                )
+
+        export_bs_rows.extend([
+            ("Total Non-current Liabilities",
+             non_current_liability_total),
+            ("3. Current Liabilities", ""),
+        ])
+
+        for label, classifications in current_liability_groups:
+            amount = group_amount(liability_summary, classifications)
+            if abs(amount) > 0.005:
+                export_bs_rows.append(
+                    (label, amount)
+                )
+
+        export_bs_rows.extend([
+            ("Total Current Liabilities",
+             current_liability_total),
+            ("Total Equity and Liabilities",
+             total_equity_and_liabilities),
+            ("II. ASSETS", ""),
+            ("1. Non-current Assets", ""),
+        ])
+
+        for label, classifications in non_current_asset_groups:
+            amount = group_amount(asset_summary, classifications)
+            if abs(amount) > 0.005:
+                export_bs_rows.append(
+                    (label, amount)
+                )
+
+        export_bs_rows.extend([
+            ("Total Non-current Assets",
+             non_current_asset_total),
+            ("2. Current Assets", ""),
+        ])
+
+        for label, classifications in current_asset_groups:
+            amount = group_amount(asset_summary, classifications)
+            if abs(amount) > 0.005:
+                export_bs_rows.append(
+                    (label, amount)
+                )
+
+        export_bs_rows.extend([
+            ("Total Current Assets",
+             current_asset_total),
+            ("Total Assets", total_assets),
+        ])
+
+        # =====================================================
+        # NOTES TO ACCOUNTS
+        # =====================================================
+
+        notes_rows = []
+
+        notes_rows.append((
+            "Basis of preparation",
+            "Financial statements are generated from the uploaded Trial Balance "
+            "using deterministic accounting rules with AI fallback for "
+            "unrecognized accounts."
+        ))
+
+        notes_rows.append((
+            "Schedule III presentation",
+            "The primary statements use a Schedule III-style hierarchy. "
+            "Required statutory notes and disclosures should be reviewed "
+            "before filing."
+        ))
+
+        if len(low_confidence):
+            notes_rows.append((
+                "Low-confidence classifications",
+                f"{len(low_confidence)} account(s) have confidence below 80%."
+            ))
+
+        if len(missing_info):
+            notes_rows.append((
+                "Missing information",
+                f"{len(missing_info)} account(s) contain missing-information flags."
+            ))
+
+        if "Inventories" in results_df["Classification"].values:
+            notes_rows.append((
+                "Inventories",
+                "Inventory balances are presented under Current Assets. "
+                "Opening/closing inventory treatment should be reviewed against "
+                "the entity's accounting policy and adjusted Trial Balance."
+            ))
+
+        if "Borrowings" in results_df["Classification"].values:
+            notes_rows.append((
+                "Borrowings",
+                "Current/non-current presentation depends on contractual "
+                "maturity and repayment terms where those facts are not "
+                "available from the Trial Balance."
+            ))
+
+        notes_rows.append((
+            "Statutory review",
+            "This application is an AI-assisted preparation tool and does not "
+            "replace professional review, applicable accounting standards, "
+            "company-specific disclosures or statutory filing requirements."
+        ))
+
+        # Validation rows are built after the checks below.
+
+
+        # =====================================================
+        # FINAL VALIDATION
+        # =====================================================
+
+        st.divider()
+        st.markdown("## 9️⃣ Final Validation")
+
+        tb_balanced = (
+            abs(difference) < 0.01
+        )
+
+        bs_balanced = (
+            abs(balance_difference) < 0.01
+        )
+
+        approved_classifications = (
+            results_df["Classification"]
+            .isin(APPROVED_HEADS)
+        )
+
+        invalid_classification_count = int(
+            (~approved_classifications).sum()
+        )
+
+        review_count = int(
+            results_df["Ambiguous"]
+            .fillna(True)
+            .sum()
+        )
+
+        numeric_data_ok = (
+            pd.api.types.is_numeric_dtype(
+                results_df["Debit"]
+            )
+            and
+            pd.api.types.is_numeric_dtype(
+                results_df["Credit"]
             )
         )
 
-    excel_bytes = make_schedule3_excel(
-        company_name=company_name,
-        cin=cin,
-        reporting_date=reporting_date,
-        results_df=results_df,
-        pnl_rows=export_pnl_rows,
-        bs_rows=export_bs_rows,
-        validation_rows=validation_rows,
-        notes_rows=notes_rows,
-    )
+        pnl_reconciles = abs(
+            total_revenue
+            - total_expenses
+            - tax_expense
+            - profit
+        ) < 0.01
 
-    pdf_bytes = make_schedule3_pdf(
-        company_name=company_name,
-        cin=cin,
-        reporting_date=reporting_date,
-        pnl_rows=export_pnl_rows,
-        bs_rows=export_bs_rows,
-        validation_rows=validation_rows,
-        notes_rows=notes_rows,
-    )
-
-    st.divider()
-
-    export_col1, export_col2 = st.columns(2)
-
-    safe_company = re.sub(
-        r"[^A-Za-z0-9_-]+",
-        "_",
-        company_name.strip() or "AccountingAI"
-    ).strip("_")
-
-    with export_col1:
-        st.download_button(
-            "📊 Download Excel Working Paper",
-            data=excel_bytes,
-            file_name=f"{safe_company}_Schedule_III_Working_Paper.xlsx",
-            mime=(
-                "application/vnd.openxmlformats-officedocument."
-                "spreadsheetml.sheet"
+        validation_checks = [
+            (
+                "Trial Balance balances",
+                tb_balanced,
             ),
-            key="download_excel_final",
+            (
+                "All account classifications are approved",
+                invalid_classification_count == 0,
+            ),
+            (
+                "Debit and Credit values are numeric",
+                numeric_data_ok,
+            ),
+            (
+                "Profit & Loss reconciles",
+                pnl_reconciles,
+            ),
+            (
+                "Balance Sheet Tally",
+                bs_balanced,
+            ),
+            (
+                "No accounts require manual review",
+                review_count == 0,
+            ),
+        ]
+
+        passed_count = sum(
+            bool(passed)
+            for _, passed in validation_checks
         )
 
-    with export_col2:
-        st.download_button(
-            "📄 Download PDF Financial Statements",
-            data=pdf_bytes,
-            file_name=f"{safe_company}_Financial_Statements.pdf",
-            mime="application/pdf",
-            key="download_pdf_final",
+        st.metric(
+            "Validation Score",
+            f"{passed_count}/{len(validation_checks)} checks passed",
         )
 
+        validation_cols = st.columns(2)
 
-    # =====================================================
-    # FOOTER
-    # =====================================================
+        for index, (
+            check_name,
+            passed,
+        ) in enumerate(validation_checks):
 
-    st.divider()
+            with validation_cols[index % 2]:
 
-    st.caption(
-        "Accounting AI • Schedule III-style financial statement "
-        "presentation • Review all classifications and required "
-        "disclosures before using statements for statutory filing."
-    )
+                if passed:
+
+                    st.success(
+                        f"✅ {check_name}"
+                    )
+
+                else:
+
+                    st.warning(
+                        f"⚠️ {check_name}"
+                    )
+
+        if invalid_classification_count > 0:
+
+            st.error(
+                f"{invalid_classification_count} account(s) "
+                "have an unapproved classification."
+            )
+
+        if review_count > 0:
+
+            st.info(
+                f"{review_count} account(s) still require manual review. "
+                "The statements can be viewed, but the validation is "
+                "not fully complete."
+            )
+
+        all_core_checks_pass = (
+            tb_balanced
+            and bs_balanced
+            and pnl_reconciles
+            and invalid_classification_count == 0
+            and numeric_data_ok
+        )
+
+        if all_core_checks_pass and review_count == 0:
+
+            st.success(
+                "🎉 Financial statements passed all validation checks."
+            )
+
+        elif all_core_checks_pass:
+
+            st.warning(
+                "Financial statements balance, but manual review "
+                "is still pending."
+            )
+
+
+        # =====================================================
+        # BUILD EXPORT VALIDATION DATA
+        # =====================================================
+
+        validation_rows = []
+
+        for check_name, passed in validation_checks:
+            validation_rows.append(
+                (
+                    check_name,
+                    "PASS" if passed else "REVIEW",
+                    "Passed" if passed else "Requires attention",
+                )
+            )
+
+        excel_bytes = make_schedule3_excel(
+            company_name=company_name,
+            cin=cin,
+            reporting_date=reporting_date,
+            results_df=results_df,
+            pnl_rows=export_pnl_rows,
+            bs_rows=export_bs_rows,
+            validation_rows=validation_rows,
+            notes_rows=notes_rows,
+        )
+
+        pdf_bytes = make_schedule3_pdf(
+            company_name=company_name,
+            cin=cin,
+            reporting_date=reporting_date,
+            pnl_rows=export_pnl_rows,
+            bs_rows=export_bs_rows,
+            validation_rows=validation_rows,
+            notes_rows=notes_rows,
+        )
+
+        st.divider()
+
+        export_col1, export_col2 = st.columns(2)
+
+        safe_company = re.sub(
+            r"[^A-Za-z0-9_-]+",
+            "_",
+            company_name.strip() or "AccountingAI"
+        ).strip("_")
+
+        with export_col1:
+            st.download_button(
+                "📊 Download Excel Working Paper",
+                data=excel_bytes,
+                file_name=f"{safe_company}_Schedule_III_Working_Paper.xlsx",
+                mime=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+                key="download_excel_final",
+            )
+
+        with export_col2:
+            st.download_button(
+                "📄 Download PDF Financial Statements",
+                data=pdf_bytes,
+                file_name=f"{safe_company}_Financial_Statements.pdf",
+                mime="application/pdf",
+                key="download_pdf_final",
+            )
+
+
+        # =====================================================
+        # FOOTER
+        # =====================================================
+
+        st.divider()
+
+        st.caption(
+            "Accounting AI • Schedule III-style financial statement "
+            "presentation • Review all classifications and required "
+            "disclosures before using statements for statutory filing."
+        )
