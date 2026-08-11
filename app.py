@@ -3625,6 +3625,13 @@ if st.session_state.get("prepared", False):
             company_name.strip() or "AccountingAI"
         ).strip("_")
 
+        # Use literal, upload-specific keys so Streamlit can never confuse
+        # the two download widgets, even when the same workbook triggers
+        # multiple reruns.
+        export_token = hashlib.sha256(
+            f"{uploaded_file.name}_{uploaded_file.size}_{file_token}".encode("utf-8")
+        ).hexdigest()[:16]
+
         with export_col1:
             st.download_button(
                 "📊 Download Excel Working Paper",
@@ -3634,7 +3641,7 @@ if st.session_state.get("prepared", False):
                     "application/vnd.openxmlformats-officedocument."
                     "spreadsheetml.sheet"
                 ),
-                key=export_widget_key("download_excel"),
+                key=f"download_excel_{export_token}",
             )
 
         with export_col2:
@@ -3643,7 +3650,7 @@ if st.session_state.get("prepared", False):
                 data=pdf_bytes,
                 file_name=f"{safe_company}_Financial_Statements.pdf",
                 mime="application/pdf",
-                key=export_widget_key("download_pdf"),
+                key=f"download_pdf_{export_token}",
             )
 
 
