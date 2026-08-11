@@ -3654,27 +3654,44 @@ if st.session_state.get("prepared", False):
             company_name.strip() or "AccountingAI"
         ).strip("_")
 
-        # Permanent, globally unique widget keys. These are intentionally
-        # not derived from the uploaded filename or session state.
+        # -----------------------------------------------------
+        # DOWNLOAD LINKS
+        # -----------------------------------------------------
+        # Do NOT use st.download_button here. Streamlit was registering the
+        # export widget more than once on this workbook's rerun path even
+        # though the source contains one call. Plain HTML download links
+        # have no Streamlit widget key, so this collision is eliminated.
+        excel_filename = f"{safe_company}_Schedule_III_Working_Paper.xlsx"
+        pdf_filename = f"{safe_company}_Financial_Statements.pdf"
+
+        excel_b64 = base64.b64encode(excel_bytes).decode("ascii")
+        pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+
+        excel_href = (
+            "data:application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet;base64,"
+            + excel_b64
+        )
+        pdf_href = "data:application/pdf;base64," + pdf_b64
+
         with export_col1:
-            st.download_button(
-                "📊 Download Excel Working Paper",
-                data=excel_bytes,
-                file_name=f"{safe_company}_Schedule_III_Working_Paper.xlsx",
-                mime=(
-                    "application/vnd.openxmlformats-officedocument."
-                    "spreadsheetml.sheet"
-                ),
-                key="accountra_export_excel_v1_1",
+            st.markdown(
+                f'<a href="{excel_href}" download="{excel_filename}" '
+                'style="display:block;text-align:center;text-decoration:none;'
+                'background:#ff4b4b;color:white;padding:0.65rem 1rem;'
+                'border-radius:0.5rem;font-weight:700;">'
+                '📊 Download Excel Working Paper</a>',
+                unsafe_allow_html=True,
             )
 
         with export_col2:
-            st.download_button(
-                "📄 Download PDF Financial Statements",
-                data=pdf_bytes,
-                file_name=f"{safe_company}_Financial_Statements.pdf",
-                mime="application/pdf",
-                key="accountra_export_pdf_v1_1",
+            st.markdown(
+                f'<a href="{pdf_href}" download="{pdf_filename}" '
+                'style="display:block;text-align:center;text-decoration:none;'
+                'background:#ff4b4b;color:white;padding:0.65rem 1rem;'
+                'border-radius:0.5rem;font-weight:700;">'
+                '📄 Download PDF Financial Statements</a>',
+                unsafe_allow_html=True,
             )
 
 
