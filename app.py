@@ -1786,7 +1786,7 @@ with st.sidebar:
         "These details are used for the report heading and exports."
     )
 
-    st.info("💬 Feedback & bug reporting is available at the bottom of the page.")
+    st.info("💬 Feedback & bug reporting is available below the start section.")
 
     st.divider()
     st.markdown("### Workflow")
@@ -1800,6 +1800,59 @@ with st.sidebar:
         **6.** Run final validation
         """
     )
+
+# =====================================================
+# FEEDBACK & BUG REPORT
+# =====================================================
+
+st.divider()
+st.markdown("## 💬 Feedback & Bug Report")
+st.caption(
+    "Help us improve Accountra. Tell us what worked, what didn't, "
+    "or what you would like to see next."
+)
+
+feedback_type = st.radio(
+    "What would you like to send?",
+    ["💬 Feedback", "🐛 Report a Bug"],
+    horizontal=True,
+    key="feedback_type",
+)
+
+with st.form("feedback_form"):
+    feedback_message = st.text_area(
+        "Your message",
+        placeholder=(
+            "Tell us what happened, what you expected, or what you would like us to improve..."
+        ),
+        height=120,
+        key="feedback_message",
+    )
+
+    feedback_email = st.text_input(
+        "Email (optional)",
+        placeholder="you@example.com",
+        key="feedback_email",
+    )
+
+    submitted = st.form_submit_button(
+        "Send Feedback",
+        type="primary",
+        use_container_width=True,
+    )
+
+    if submitted:
+        if feedback_message.strip():
+            st.session_state["feedback_submitted"] = True
+            st.session_state["feedback_last_type"] = feedback_type
+            st.session_state["feedback_last_message"] = feedback_message.strip()
+            st.success(
+                "Thanks! Your feedback was recorded for this session. "
+                "We'll connect a persistent feedback inbox before public launch."
+            )
+        else:
+            st.warning("Please enter a message before submitting.")
+
 
 # =========================================================
 # STEP 1 — CHOOSE INPUT WORKFLOW
@@ -1832,6 +1885,16 @@ with tb_col:
         unsafe_allow_html=True,
     )
 
+    if "reset_nonce" not in st.session_state:
+        st.session_state["reset_nonce"] = 0
+
+    uploaded_file = st.file_uploader(
+        "Choose a Trial Balance file",
+        type=["xlsx", "xls", "csv"],
+        help="Supported formats: .xlsx, .xls and .csv",
+        key=f"trial_balance_upload_v3_{st.session_state['reset_nonce']}",
+    )
+
 with soon_col:
     st.markdown(
         """
@@ -1849,17 +1912,7 @@ with soon_col:
 # PATH A — EXISTING TRIAL BALANCE WORKFLOW
 # ---------------------------------------------------------
 
-    if "reset_nonce" not in st.session_state:
-        st.session_state["reset_nonce"] = 0
-
-    uploaded_file = st.file_uploader(
-        "Choose a Trial Balance file",
-        type=["xlsx", "xls", "csv"],
-        help="Supported formats: .xlsx, .xls and .csv",
-        key=f"trial_balance_upload_v3_{st.session_state['reset_nonce']}",
-    )
-
-    if uploaded_file:
+if uploaded_file:
         reset_col, compare_col = st.columns([1, 2])
         with reset_col:
             if st.button(
@@ -3304,58 +3357,6 @@ if st.session_state.get("prepared", False):
                 key="download_pdf_final",
             )
 
-
-        # =====================================================
-        # FEEDBACK & BUG REPORT
-        # =====================================================
-
-        st.divider()
-        st.markdown("## 💬 Feedback & Bug Report")
-        st.caption(
-            "Help us improve Accountra. Tell us what worked, what didn't, "
-            "or what you would like to see next."
-        )
-
-        feedback_type = st.radio(
-            "What would you like to send?",
-            ["💬 Feedback", "🐛 Report a Bug"],
-            horizontal=True,
-            key="feedback_type",
-        )
-
-        with st.form("feedback_form"):
-            feedback_message = st.text_area(
-                "Your message",
-                placeholder=(
-                    "Tell us what happened, what you expected, or what you would like us to improve..."
-                ),
-                height=120,
-                key="feedback_message",
-            )
-
-            feedback_email = st.text_input(
-                "Email (optional)",
-                placeholder="you@example.com",
-                key="feedback_email",
-            )
-
-            submitted = st.form_submit_button(
-                "Send Feedback",
-                type="primary",
-                use_container_width=True,
-            )
-
-            if submitted:
-                if feedback_message.strip():
-                    st.session_state["feedback_submitted"] = True
-                    st.session_state["feedback_last_type"] = feedback_type
-                    st.session_state["feedback_last_message"] = feedback_message.strip()
-                    st.success(
-                        "Thanks! Your feedback was recorded for this session. "
-                        "We'll connect a persistent feedback inbox before public launch."
-                    )
-                else:
-                    st.warning("Please enter a message before submitting.")
 
         # =====================================================
         # FOOTER
