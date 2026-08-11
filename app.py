@@ -2,6 +2,7 @@ import json
 import re
 import os
 import base64
+import hashlib
 from io import BytesIO
 from pathlib import Path
 from datetime import date
@@ -42,8 +43,16 @@ from reportlab.platypus import (
 # =========================================================
 
 BASE_DIR = Path(__file__).resolve().parent
-LOGO_PATH = BASE_DIR / "accountra_logo.png"
+LOGO_PATH = BASE_DIR / "accountra_logo_clean.png"
 CREATOR_NAME = "Rohan A."
+
+
+def export_widget_key(kind):
+    """Create a stable, upload-specific Streamlit widget key."""
+    token = str(st.session_state.get("file_token") or "no_file")
+    digest = hashlib.sha256(token.encode("utf-8")).hexdigest()[:12]
+    return f"{kind}_{digest}"
+
 
 # =========================================================
 # DISPLAY / DATA HELPERS
@@ -3625,7 +3634,7 @@ if st.session_state.get("prepared", False):
                     "application/vnd.openxmlformats-officedocument."
                     "spreadsheetml.sheet"
                 ),
-                key="download_excel_final",
+                key=export_widget_key("download_excel"),
             )
 
         with export_col2:
@@ -3634,7 +3643,7 @@ if st.session_state.get("prepared", False):
                 data=pdf_bytes,
                 file_name=f"{safe_company}_Financial_Statements.pdf",
                 mime="application/pdf",
-                key="download_pdf_final",
+                key=export_widget_key("download_pdf"),
             )
 
 
