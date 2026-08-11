@@ -1606,7 +1606,8 @@ def clear_accounting_session():
             or key in {
                 "file_token", "prepared", "results", "comparative_results",
                 "generated_tb", "generated_tb_clarifications", "generated_tb_confirmed",
-                "comparative_loaded"
+                "comparative_loaded", "export_excel_bytes", "export_pdf_bytes",
+                "export_signature"
             }
         ):
             del st.session_state[key]
@@ -3594,26 +3595,54 @@ if st.session_state.get("prepared", False):
                 )
             )
 
-        excel_bytes = make_schedule3_excel(
-            company_name=company_name,
-            cin=cin,
-            reporting_date=reporting_date,
-            results_df=results_df,
-            pnl_rows=export_pnl_rows,
-            bs_rows=export_bs_rows,
-            validation_rows=validation_rows,
-            notes_rows=notes_rows,
-        )
+        # =====================================================
+        # BUILD / STORE EXPORT ARTIFACTS ONCE PER PREPARED STATE
+        # =====================================================
+        # Keep generated files in session state and render exactly one pair
+        # of download widgets with app-unique keys. This avoids Streamlit
+        # element-ID collisions on workbook-specific rerun paths.
 
-        pdf_bytes = make_schedule3_pdf(
-            company_name=company_name,
-            cin=cin,
-            reporting_date=reporting_date,
-            pnl_rows=export_pnl_rows,
-            bs_rows=export_bs_rows,
-            validation_rows=validation_rows,
-            notes_rows=notes_rows,
-        )
+        export_signature = hashlib.sha256(
+            (
+                f"{file_token}|{company_name}|{cin}|{reporting_date}|"
+                f"{len(results_df)}|{len(export_pnl_rows)}|{len(export_bs_rows)}|"
+                f"{len(validation_rows)}"
+            ).encode("utf-8")
+        ).hexdigest()
+
+        if st.session_state.get("export_signature") != export_signature:
+            st.session_state["export_excel_bytes"] = make_schedule3_excel(
+                company_name=company_name,
+                cin=cin,
+                reporting_date=reporting_date,
+                results_df=results_df,
+                pnl_rows=export_pnl_rows,
+                bs_rows=export_bs_rows,
+                validation_rows=validation_rows,
+                notes_rows=notes_rows,
+            )
+
+            st.session_state["export_pdf_bytes"] = make_schedule3_pdf(
+                company_name=company_name,
+                cin=cin,
+                reporting_date=reporting_date,
+                pnl_rows=export_pnl_rows,
+                bs_rows=export_bs_rows,
+                validation_rows=validation_rows,
+                notes_rows=notes_rows,
+            )
+
+            st.session_state["export_signature"] = export_signature
+
+        excel_bytes = st.session_state.get("export_excel_bytes")
+        pdf_bytes = st.session_state.get("export_pdf_bytes")
+
+        if excel_bytes is None or pdf_bytes is None:
+            st.error(
+                "Export files could not be prepared. Please use "
+                "Remove file & reset, then prepare the statements again."
+            )
+            st.stop()
 
         st.divider()
 
@@ -3625,9 +3654,8 @@ if st.session_state.get("prepared", False):
             company_name.strip() or "AccountingAI"
         ).strip("_")
 
-        # Explicit, permanently distinct keys for the two export widgets.
-        # These keys are unique in the entire app and do not depend on the
-        # uploaded workbook, filename, or rerun state.
+        # Permanent, globally unique widget keys. These are intentionally
+        # not derived from the uploaded filename or session state.
         with export_col1:
             st.download_button(
                 "📊 Download Excel Working Paper",
@@ -3637,7 +3665,7 @@ if st.session_state.get("prepared", False):
                     "application/vnd.openxmlformats-officedocument."
                     "spreadsheetml.sheet"
                 ),
-                key="accountra_export_excel_v1",
+                key="accountra_export_excel_v1_1",
             )
 
         with export_col2:
@@ -3646,7 +3674,7 @@ if st.session_state.get("prepared", False):
                 data=pdf_bytes,
                 file_name=f"{safe_company}_Financial_Statements.pdf",
                 mime="application/pdf",
-                key="accountra_export_pdf_v1",
+                key="accountra_export_pdf_v1_1",
             )
 
 
