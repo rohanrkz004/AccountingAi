@@ -2724,9 +2724,36 @@ def v7_render_validation(results_df,data):
     checks=[("Trial Balance balances",tb),("All classifications approved",valid),("Debit/Credit numeric",numeric),("P&L reconciles",pnl_ok),("Balance Sheet tallies",bs_ok),("No manual review pending",review==0)]
     passed=sum(x[1] for x in checks)
     st.markdown(f"<div class='panel'><div class='panel-title'>Validation score</div><div class='metric-big'>{passed}/{len(checks)}</div><div class='panel-copy'>Core checks passed</div></div>",unsafe_allow_html=True)
-    for name,ok in checks:
-        st.success(f"PASS · {name}") if ok else st.warning(f"REVIEW · {name}")
+    for name, ok in checks:
+        # Never use a Streamlit command in a conditional expression here.
+        # Streamlit's "magic" display can render the returned DeltaGenerator
+        # object itself, which makes internal DeltaGenerator documentation
+        # appear on the page.
+        if ok:
+            st.success(f"PASS · {name}")
+        else:
+            st.warning(f"REVIEW · {name}")
     if data["pbt"]<-.01 and data["tax_expense"]>.01: st.warning("PBT is negative while Tax Expense is present. Review the tax treatment before filing.")
+
+
+def v7_export_statement_rows(rows):
+    """Convert V7's rich statement-row dictionaries to the tuple format
+    expected by the original Excel/PDF report generators.
+
+    The on-screen statement renderer needs current/previous values and row
+    kinds. The legacy export functions intentionally accept simple two-column
+    rows. Keeping this conversion at the export boundary preserves both
+    interfaces without changing the accounting engine.
+    """
+    exported = []
+    for row in rows:
+        label = str(row.get("label", ""))
+        kind = str(row.get("kind", ""))
+        amount = row.get("current", "")
+        if kind in {"section", "subsection"} or amount is None:
+            amount = ""
+        exported.append((label, amount))
+    return exported
 
 
 def v7_render_reports(data):
@@ -2735,8 +2762,15 @@ def v7_render_reports(data):
     pnl,bs=v7_statement_rows(data)
     validation_rows=[("Trial Balance balances","PASS" if abs(float(results_df['Debit'].sum()-results_df['Credit'].sum()))<.01 else "REVIEW","Core debit/credit check"),("Balance Sheet tally","PASS" if abs(data['total_assets']-data['total_el'])<.01 else "REVIEW","Assets versus equity and liabilities")]
     notes=[]
-    excel=make_schedule3_excel(company_name=st.session_state["company_name"],cin=st.session_state["cin"],reporting_date=st.session_state["reporting_date"],results_df=results_df,pnl_rows=pnl,bs_rows=bs,validation_rows=validation_rows,notes_rows=notes)
-    pdf=make_schedule3_pdf(company_name=st.session_state["company_name"],cin=st.session_state["cin"],reporting_date=st.session_state["reporting_date"],pnl_rows=pnl,bs_rows=bs,validation_rows=validation_rows,notes_rows=notes)
+
+    # The screen uses rich dictionaries for current/previous statement values,
+    # while the original report generators use simple (label, amount) rows.
+    # Convert only at the export boundary so the existing report engine stays
+    # unchanged and exports contain actual values instead of dictionary keys.
+    export_pnl=v7_export_statement_rows(pnl)
+    export_bs=v7_export_statement_rows(bs)
+    excel=make_schedule3_excel(company_name=st.session_state["company_name"],cin=st.session_state["cin"],reporting_date=st.session_state["reporting_date"],results_df=results_df,pnl_rows=export_pnl,bs_rows=export_bs,validation_rows=validation_rows,notes_rows=notes)
+    pdf=make_schedule3_pdf(company_name=st.session_state["company_name"],cin=st.session_state["cin"],reporting_date=st.session_state["reporting_date"],pnl_rows=export_pnl,bs_rows=export_bs,validation_rows=validation_rows,notes_rows=notes)
     st.markdown("<div class='info-grid'><div class='info-card'><strong>Excel working paper</strong><span>Structured Schedule III-style workbook with classifications and validation information.</span></div><div class='info-card'><strong>PDF statements</strong><span>Readable financial statements for review and sharing.</span></div><div class='info-card'><strong>Final check</strong><span>Review the Validation Center before treating exports as final.</span></div></div>",unsafe_allow_html=True)
     safe=re.sub(r"[^A-Za-z0-9_-]+","_",st.session_state["company_name"].strip() or "Accountra").strip("_")
     c1,c2=st.columns(2)
