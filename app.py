@@ -45,6 +45,11 @@ from reportlab.platypus import (
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = BASE_DIR / "assets" / "accountra_mark.png"
 CREATOR_NAME = "Rohan A."
+try:
+    _configured_google_form_url = st.secrets.get("ACCOUNTRA_GOOGLE_FORM_URL", "")
+except Exception:
+    _configured_google_form_url = ""
+GOOGLE_FORM_URL = str(_configured_google_form_url or os.getenv("ACCOUNTRA_GOOGLE_FORM_URL", "")).strip()
 
 
 def export_widget_key(kind):
@@ -185,6 +190,136 @@ def clean_number_series(series):
         .fillna(0.0)
     )
 
+
+
+# =========================================================
+# FLEXIBLE TRIAL BALANCE INGESTION
+# =========================================================
+
+
+def _tb_normalize_label(value):
+    """Normalize workbook labels so common Excel naming variations compare cleanly."""
+    return re.sub(r"[^a-z0-9]+", " ", str(value or "").strip().lower()).strip()
+
+
+def _tb_find_column(header_values, aliases):
+    normalized = [_tb_normalize_label(value) for value in header_values]
+    alias_values = [_tb_normalize_label(alias) for alias in aliases]
+    for alias in alias_values:
+        if alias and alias in normalized:
+            return normalized.index(alias)
+    ranked = []
+    for index, value in enumerate(normalized):
+        if not value:
+            continue
+        tokens = set(value.split())
+        for alias in alias_values:
+            alias_tokens = set(alias.split())
+            if alias_tokens and alias_tokens.issubset(tokens):
+                ranked.append((len(alias_tokens), len(value), index))
+    return max(ranked)[2] if ranked else None
+
+
+def _tb_parse_amount(value):
+    """Parse money cells that may include commas, currency symbols, Dr/Cr or brackets."""
+    if value is None or pd.isna(value):
+        return 0.0, None
+    text = str(value).strip()
+    if not text or text.lower() in {"nan", "none", "-"}:
+        return 0.0, None
+    lower = text.lower()
+    side = "credit" if re.search(r"(^|\s)(cr|credit)(\s|$)", lower) else "debit" if re.search(r"(^|\s)(dr|debit)(\s|$)", lower) else None
+    cleaned = re.sub(r"\b(?:dr|cr|debit|credit)\b", "", lower, flags=re.IGNORECASE)
+    cleaned = cleaned.replace("₹", "").replace("$", "").replace("£", "").replace("€", "")
+    number = clean_number_series(pd.Series([cleaned])).iloc[0]
+    return float(number or 0), side
+
+
+def _tb_candidate_from_sheet(sheet_name, frame):
+    """Find a Trial Balance header row and convert the rows below it to a small table."""
+    if frame is None or frame.empty:
+        return None
+    account_aliases = ["account", "account name", "account head", "ledger", "ledger name", "ledger account", "particulars", "description", "gl account"]
+    debit_aliases = ["debit", "debits", "dr", "debit amount", "debit balance", "debit total"]
+    credit_aliases = ["credit", "credits", "cr", "credit amount", "credit balance", "credit total"]
+    amount_aliases = ["amount", "balance", "closing balance", "net balance", "value"]
+    side_aliases = ["type", "dr cr", "debit credit", "balance type", "nature", "side"]
+    candidates = []
+    scan = frame.head(min(45, len(frame)))
+    for header_row, row in scan.iterrows():
+        header_values = row.tolist()
+        account_col = _tb_find_column(header_values, account_aliases)
+        debit_col = _tb_find_column(header_values, debit_aliases)
+        credit_col = _tb_find_column(header_values, credit_aliases)
+        amount_col = _tb_find_column(header_values, amount_aliases)
+        side_col = _tb_find_column(header_values, side_aliases)
+        has_split = account_col is not None and debit_col is not None and credit_col is not None
+        has_combined = account_col is not None and amount_col is not None and side_col is not None
+        if not has_split and not has_combined:
+            continue
+        score = 30 if has_split else 22
+        sheet_label = _tb_normalize_label(sheet_name)
+        if "trial balance" in sheet_label or sheet_label == "tb":
+            score += 24
+        elif "ledger" in sheet_label:
+            score += 10
+        elif "profit loss" in sheet_label or "balance sheet" in sheet_label or "notes" in sheet_label:
+            score -= 18
+        body = frame.iloc[int(header_row) + 1:].copy()
+        rows = []
+        for values in body.itertuples(index=False, name=None):
+            if account_col >= len(values):
+                continue
+            raw_account = values[account_col]
+            account = "" if pd.isna(raw_account) else str(raw_account).strip()
+            if not account or account.lower() in {"nan", "none"}:
+                continue
+            debit = credit = 0.0
+            if has_split:
+                debit, debit_side = _tb_parse_amount(values[debit_col] if debit_col < len(values) else 0)
+                credit, credit_side = _tb_parse_amount(values[credit_col] if credit_col < len(values) else 0)
+                if debit_side == "credit" and credit == 0:
+                    credit, debit = debit, 0.0
+                if credit_side == "debit" and debit == 0:
+                    debit, credit = credit, 0.0
+            else:
+                amount, amount_side = _tb_parse_amount(values[amount_col] if amount_col < len(values) else 0)
+                side_text = str(values[side_col] if side_col < len(values) else "").lower()
+                side = "credit" if "cr" in side_text or "credit" in side_text else "debit" if "dr" in side_text or "debit" in side_text else amount_side
+                if side == "credit" or amount < 0:
+                    credit = abs(amount)
+                else:
+                    debit = abs(amount)
+            rows.append({"Account": account, "Debit": debit, "Credit": credit})
+        total_names = {"total", "grand total", "trial balance total", "subtotal", "total trial balance", "opening balance", "closing balance"}
+        rows = [row for row in rows if _tb_normalize_label(row["Account"]) not in total_names and not re.match(r"^(total|grand total|subtotal)\b", row["Account"].strip(), re.IGNORECASE)]
+        usable = [row for row in rows if abs(row["Debit"]) > 0.000001 or abs(row["Credit"]) > 0.000001]
+        if len(usable) < 1:
+            continue
+        score += min(len(usable), 20)
+        candidate = pd.DataFrame(rows, columns=["Account", "Debit", "Credit"])
+        confidence = min(0.99, 0.58 + (0.16 if has_split else 0.08) + (0.12 if "trial balance" in _tb_normalize_label(sheet_name) else 0) + min(len(usable), 20) / 200)
+        candidates.append({"sheet": str(sheet_name), "header_row": int(header_row) + 1, "score": score, "confidence": confidence, "data": candidate, "mode": "Debit/Credit columns" if has_split else "Amount + Dr/Cr column"})
+    return max(candidates, key=lambda item: item["score"]) if candidates else None
+
+
+def v7_extract_trial_balance(uploaded_file):
+    """Inspect an uploaded workbook and return the most likely Trial Balance table."""
+    data = uploaded_file.getvalue()
+    name = str(uploaded_file.name).lower()
+    if name.endswith(".csv"):
+        sheets = {"Uploaded CSV": pd.read_csv(BytesIO(data), header=None)}
+    else:
+        sheets = pd.read_excel(BytesIO(data), sheet_name=None, header=None)
+    candidates = [candidate for sheet_name, frame in sheets.items() if (candidate := _tb_candidate_from_sheet(sheet_name, frame))]
+    if not candidates:
+        return {"data": None, "sheet": None, "header_row": None, "confidence": 0.0, "mode": None, "candidate_count": 0, "needs_review": True}
+    candidates.sort(key=lambda item: item["score"], reverse=True)
+    best = candidates[0]
+    close_match = len(candidates) > 1 and best["score"] - candidates[1]["score"] < 10
+    best["candidate_count"] = len(candidates)
+    best["needs_review"] = close_match or best["confidence"] < 0.78
+    return best
 
 
 # =========================================================
@@ -2214,7 +2349,11 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 [data-testid="stHeader"], header, footer, #MainMenu, [data-testid="stToolbar"] {{ display:none!important; }}
 [data-testid="stSidebar"] {{ display:none!important; }}
 
-.a-topbar {{ display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.2rem 0 1rem; border-bottom:1px solid var(--a-line); margin-bottom:1.4rem; }}
+.a-topbar {{ display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.2rem 0 1rem; border-bottom:1px solid var(--a-line); margin-bottom:.35rem; }}
+.site-nav {{ display:flex; justify-content:flex-end; gap:.45rem; margin:0 0 1rem; }}
+.site-nav-note {{ margin-right:auto; align-self:center; color:var(--a-muted); font-size:.76rem; font-weight:750; }}
+.site-nav .stButton button {{ min-height:38px!important; padding:.35rem .85rem!important; border:1px solid var(--a-line)!important; background:var(--a-surface)!important; color:var(--a-ink)!important; font-size:.82rem!important; box-shadow:none!important; }}
+.site-nav .stButton button:hover {{ border-color:rgba(88,101,242,.35)!important; color:var(--a-primary)!important; box-shadow:0 5px 16px rgba(15,23,42,.07)!important; }}
 .a-brand {{ display:flex; align-items:center; gap:.75rem; font-weight:800; color:var(--a-ink); }}
 .a-logo {{ width:40px; height:40px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg,var(--a-primary),var(--a-cyan)); color:white; font-weight:900; font-size:1.25rem; box-shadow:0 8px 22px rgba(88,101,242,.25); }}
 .a-brand-name {{ font-size:1.18rem; letter-spacing:-.02em; }}
@@ -2224,18 +2363,44 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .a-session-pill {{ display:inline-flex; align-items:center; gap:.45rem; padding:.45rem .7rem; border:1px solid var(--a-line); border-radius:999px; background:var(--a-surface); color:var(--a-muted); font-size:.76rem; font-weight:800; white-space:nowrap; }}
 .a-session-dot {{ width:.48rem; height:.48rem; border-radius:50%; background:var(--a-success); box-shadow:0 0 0 3px rgba(22,163,74,.12); }}
 
-.hero {{ position:relative; overflow:hidden; border:1px solid rgba(88,101,242,.18); border-radius:28px; padding:4.4rem 4.5rem 3.7rem; background:linear-gradient(135deg,#ffffff 0%,#eef2ff 62%,#e0f7ff 100%); box-shadow:var(--a-shadow); }}
+.hero {{ position:relative; overflow:hidden; border:1px solid rgba(88,101,242,.18); border-radius:28px; padding:4.1rem 4.5rem 3.35rem; background:linear-gradient(135deg,#ffffff 0%,#eef2ff 62%,#e0f7ff 100%); box-shadow:var(--a-shadow); animation:accountra-rise .55s ease both; }}
 .hero:after {{ content:""; position:absolute; width:380px; height:380px; border-radius:50%; right:-130px; top:-210px; border:1px solid rgba(88,101,242,.18); box-shadow:0 0 0 55px rgba(88,101,242,.03),0 0 0 110px rgba(88,101,242,.02); }}
 .eyebrow {{ color:var(--a-primary); font-weight:900; font-size:.82rem; letter-spacing:.14em; text-transform:uppercase; margin-bottom:1rem; }}
 .hero h1 {{ font-size:clamp(3rem,6vw,5.7rem)!important; line-height:.98!important; letter-spacing:-.055em!important; margin:0!important; max-width:1050px; color:var(--a-ink)!important; }}
 .hero h1 span {{ background:linear-gradient(90deg,var(--a-primary),var(--a-cyan)); -webkit-background-clip:text; background-clip:text; color:transparent; }}
-.hero-copy {{ max-width:790px; margin-top:1.35rem; font-size:1.18rem; line-height:1.75; color:var(--a-muted); }}
+.hero-copy {{ max-width:680px; margin-top:1.2rem; font-size:1.25rem; line-height:1.65; color:var(--a-muted); }}
 .hero-actions {{ margin-top:1.35rem; }}
 .hero-actions-copy {{ color:var(--a-ink); font-weight:800; font-size:1rem; }}
 .hero-actions-note {{ color:var(--a-muted); font-size:.86rem; line-height:1.5; margin-top:.35rem; }}
 .hero-proof {{ display:flex; flex-wrap:wrap; gap:.55rem 1rem; margin-top:.8rem; color:var(--a-muted); font-size:.78rem; font-weight:700; }}
 .hero-proof span {{ display:inline-flex; align-items:center; gap:.35rem; }}
 .hero-proof span::before {{ content:"✓"; color:var(--a-success); font-weight:900; }}
+.dashboard-rail {{ display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; margin:1rem 0 1.25rem; }}
+.dashboard-card {{ position:relative; overflow:hidden; min-height:112px; padding:1.05rem 1.1rem; border:1px solid var(--a-line); border-radius:17px; background:var(--a-surface); box-shadow:0 5px 20px rgba(15,23,42,.035); animation:accountra-rise .55s ease both; }}
+.dashboard-card:nth-child(2) {{ animation-delay:.08s; }}
+.dashboard-card:nth-child(3) {{ animation-delay:.16s; }}
+.dashboard-card::after {{ content:""; position:absolute; right:-24px; bottom:-35px; width:100px; height:100px; border:1px solid rgba(88,101,242,.1); border-radius:50%; box-shadow:0 0 0 18px rgba(88,101,242,.025); }}
+.dashboard-card-num {{ color:var(--a-primary); font-size:.72rem; font-weight:900; letter-spacing:.09em; }}
+.dashboard-card-title {{ margin-top:.55rem; color:var(--a-ink); font-size:1.12rem; font-weight:900; }}
+.dashboard-card-copy {{ margin-top:.25rem; color:var(--a-muted); font-size:.86rem; line-height:1.45; }}
+.dashboard-strip {{ display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-top:1.35rem; padding:1rem 1.1rem; border:1px solid var(--a-line); border-radius:16px; background:var(--a-surface); }}
+.dashboard-strip strong {{ color:var(--a-ink); font-size:1rem; }}
+.dashboard-strip span {{ color:var(--a-muted); font-size:.84rem; line-height:1.45; }}
+.page-hero {{ padding:1.6rem 1.7rem; margin-bottom:1rem; border:1px solid rgba(88,101,242,.16); border-radius:20px; background:linear-gradient(135deg,rgba(88,101,242,.08),rgba(6,182,212,.06)); animation:accountra-rise .5s ease both; }}
+.page-eyebrow {{ color:var(--a-primary); font-size:.72rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }}
+.page-title {{ margin-top:.4rem; color:var(--a-ink); font-size:clamp(2rem,4vw,3.3rem); font-weight:900; letter-spacing:-.05em; }}
+.page-copy {{ max-width:720px; margin-top:.45rem; color:var(--a-muted); font-size:1.05rem; line-height:1.6; }}
+.about-grid {{ display:grid; grid-template-columns:1.1fr .9fr; gap:1rem; margin-top:1rem; }}
+.about-card, .contact-card {{ padding:1.3rem; border:1px solid var(--a-line); border-radius:18px; background:var(--a-surface); box-shadow:0 5px 20px rgba(15,23,42,.035); }}
+.about-card strong, .contact-card strong {{ display:block; color:var(--a-ink); font-size:1.15rem; }}
+.about-card p, .contact-card p {{ color:var(--a-muted); line-height:1.6; margin:.45rem 0 0; }}
+.about-points {{ display:grid; gap:.65rem; margin-top:1rem; }}
+.about-point {{ display:flex; gap:.65rem; align-items:flex-start; padding:.8rem; border-radius:13px; background:var(--a-surface-2); color:var(--a-muted); font-size:.9rem; line-height:1.45; }}
+.about-point::before {{ content:"✓"; flex:0 0 auto; color:var(--a-success); font-weight:900; }}
+.contact-actions {{ display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1rem; }}
+.contact-note {{ margin-top:.8rem; padding:.75rem .85rem; border-radius:12px; background:var(--a-primary-soft); color:var(--a-muted); font-size:.82rem; line-height:1.5; }}
+@keyframes accountra-rise {{ from {{ opacity:0; transform:translateY(9px); }} to {{ opacity:1; transform:translateY(0); }} }}
+@media (prefers-reduced-motion: reduce) {{ .hero, .dashboard-card, .page-hero {{ animation:none!important; }} }}
 .coming-soon {{ display:inline-flex; margin-top:1.1rem; padding:.55rem .8rem; border:1px solid var(--a-line); border-radius:999px; background:var(--a-surface-2); color:var(--a-muted); font-size:.82rem; font-weight:800; }}
 .back-label {{ padding:.75rem 0; color:var(--a-muted); font-size:.92rem; font-weight:650; }}
 
@@ -2363,6 +2528,8 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .stDataFrame {{ font-size:1rem!important; }}
 [data-testid="stMetricValue"] {{ font-size:2rem!important; font-weight:900!important; }}
 [data-testid="stMetricLabel"] {{ font-size:.95rem!important; }}
+[data-testid="stMarkdownContainer"], [data-testid="stCaptionContainer"], .stTextInput label, .stTextArea label, .stNumberInput label, .stDateInput label, .stSelectbox label {{ font-size:1.02rem; }}
+[data-testid="stCaptionContainer"] {{ font-size:.9rem!important; }}
 
 @media (max-width: 1000px) {{
   .main .block-container {{ padding:1.2rem 1.2rem 3rem!important; }}
@@ -2386,6 +2553,11 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
   .workflow-stepper::-webkit-scrollbar {{ display:none; }}
   .workflow-step {{ flex:0 0 7.6rem; flex-direction:column; justify-content:center; gap:.35rem; padding:.6rem .45rem; text-align:center; font-size:.68rem; }}
   .workflow-step-label {{ max-width:100%; }}
+  .dashboard-rail, .about-grid {{ grid-template-columns:1fr; }}
+  .dashboard-strip {{ align-items:flex-start; flex-direction:column; }}
+  .site-nav {{ justify-content:stretch; }}
+  .site-nav-note {{ display:none; }}
+  .site-nav .stButton {{ flex:1; }}
   .review-hero, .validation-hero {{ align-items:flex-start; flex-direction:column; }}
   .review-count {{ align-self:flex-start; }}
   .review-detail-grid, .statement-summary {{ grid-template-columns:1fr 1fr; }}
@@ -2394,6 +2566,21 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 }}
 </style>
 """, unsafe_allow_html=True)
+
+
+def v7_site_nav():
+    """Top-right informational navigation for the public product shell."""
+    st.markdown("<div class='site-nav'><span class='site-nav-note'>Simple, review-first accounting workflow</span>", unsafe_allow_html=True)
+    left, right = st.columns([1, 1])
+    with left:
+        if st.button("About", key="v7_about_nav", use_container_width=True):
+            st.session_state["app_page"] = "about"
+            st.rerun()
+    with right:
+        if st.button("Contact Us", key="v7_contact_nav", use_container_width=True):
+            st.session_state["app_page"] = "contact"
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def v7_topbar():
@@ -2406,6 +2593,27 @@ def v7_topbar():
       </div>
     </div>
     """, unsafe_allow_html=True)
+
+
+def v7_public_page(kind):
+    """Render the lightweight public About or Contact page."""
+    v7_topbar()
+    v7_site_nav()
+    if kind == "about":
+        st.markdown("<section class='page-hero'><div class='page-eyebrow'>ABOUT ACCOUNTRA</div><div class='page-title'>Accounting clarity, with a human in the loop.</div><div class='page-copy'>Accountra helps turn Trial Balance data into structured, review-ready financial statements without hiding the numbers behind a black box.</div></section>", unsafe_allow_html=True)
+        st.markdown("<div class='about-grid'><div class='about-card'><strong>Built for the review before the report</strong><p>Accountra combines deterministic accounting rules, AI-assisted classification, validation controls and export-ready statements in one focused workspace.</p><div class='about-points'><div class='about-point'>Upload a Trial Balance in the format you already have.</div><div class='about-point'>Review uncertain classifications before they reach the statements.</div><div class='about-point'>Validate the numbers, then export Excel and PDF reports.</div></div></div><div class='about-card'><strong>Meet the builder</strong><p>Accountra is built by <strong>Rohan A</strong> as an AI-assisted accounting workflow for clearer, more controlled financial reporting.</p><div class='contact-note'>Your uploaded files stay inside the active session until you reset the workspace. Avoid sharing confidential financial information through public contact channels.</div></div></div>", unsafe_allow_html=True)
+    else:
+        st.markdown("<section class='page-hero'><div class='page-eyebrow'>CONTACT ACCOUNTRA</div><div class='page-title'>Have feedback or an idea?</div><div class='page-copy'>Tell us what worked, what needs attention, or what would make your accounting workflow better.</div></section>", unsafe_allow_html=True)
+        st.markdown("<div class='about-grid'><div class='contact-card'><strong>Send feedback</strong><p>Use the Accountra feedback form to share product feedback, bug reports or feature requests.</p></div><div class='contact-card'><strong>Keep sensitive data private</strong><p>Please do not include Trial Balance files, API keys, passwords or confidential client information in a public form.</p><div class='contact-note'>The Google Form link will be configured through the secure ACCOUNTRA_GOOGLE_FORM_URL setting.</div></div></div>", unsafe_allow_html=True)
+        if GOOGLE_FORM_URL:
+            st.link_button("Open Contact Form →", GOOGLE_FORM_URL, type="primary", use_container_width=True)
+        else:
+            st.warning("The contact form link is not configured yet. Add your Google Form URL to ACCOUNTRA_GOOGLE_FORM_URL.")
+    st.markdown("<div style='height:1.5rem'></div>", unsafe_allow_html=True)
+    if st.button("← Back to Accountra", key=f"v7_back_public_{kind}", use_container_width=True):
+        st.session_state["app_page"] = "dashboard"
+        st.rerun()
+    v7_creator_footer()
 
 
 def v7_back_control():
@@ -2628,6 +2836,10 @@ def v7_render_statement(title, subtitle, rows):
 
 def v7_feedback():
     st.markdown("<div class='feedback'><div class='feedback-title'>Feedback</div><div style='color:var(--a-muted);margin:.3rem 0 1rem'>Tell us what worked, what didn't, or what you want next.</div></div>", unsafe_allow_html=True)
+    if GOOGLE_FORM_URL:
+        st.link_button("Open Feedback Form →", GOOGLE_FORM_URL, type="primary", use_container_width=True)
+        st.caption("Responses are collected through the Accountra Google Form.")
+        return
     with st.form("v7_feedback_form"):
         ftype=st.selectbox("Type",["Feedback","Bug report"],key="v7_feedback_type")
         msg=st.text_area("Your message",height=110,key="v7_feedback_message")
@@ -2637,6 +2849,30 @@ def v7_feedback():
             else: st.warning("Please enter a message first.")
 
 
+def v7_confirmed_upload_panel(source):
+    """Show the normalized Trial Balance summary and preserve the analyze boundary."""
+    meta = st.session_state.get("uploaded_source_meta", {})
+    if meta:
+        st.markdown(f"<div class='phase6-next'><strong>Detected:</strong> {meta.get('sheet', 'Uploaded file')} · header row {meta.get('header_row', 'auto')} · {meta.get('mode', 'normalized')}.</div>", unsafe_allow_html=True)
+    c1,c2,c3=st.columns(3)
+    with c1: st.metric("Accounts",f"{len(source):,}")
+    with c2: st.metric("Debit",indian_currency(source["Debit"].sum()))
+    with c3: st.metric("Credit",indian_currency(source["Credit"].sum()))
+    diff=float(source["Debit"].sum()-source["Credit"].sum())
+    if abs(diff)<.01: st.success("Trial Balance is balanced.")
+    else: st.error(f"Trial Balance is not balanced. Difference: {indian_currency(abs(diff))}")
+    if st.button("Analyze Trial Balance →",type="primary",use_container_width=True,key="v7_analyze"):
+        if abs(diff)>=.01:
+            st.error("Balance the Trial Balance before continuing.")
+        else:
+            with st.spinner("Preparing your accounting workspace…"):
+                rdf=v7_build_results(source)
+                st.session_state["results"]=rdf.to_dict("records")
+                st.session_state["prepared"]=True
+                st.session_state["workspace_section"]="trial_balance"
+                st.rerun()
+
+
 def v7_creator_footer():
     """Temporary launch attribution; remove this single helper when no longer needed."""
     st.markdown("<div class='creator-footer'>Built by <strong>Rohan A</strong> · Accountra AI-assisted accounting workflow</div>", unsafe_allow_html=True)
@@ -2644,14 +2880,15 @@ def v7_creator_footer():
 
 def v7_dashboard():
     v7_topbar()
+    v7_site_nav()
     st.markdown("""
     <section class='hero'>
       <div class='eyebrow'>AI FINANCIAL WORKSPACE</div>
       <h1>From Trial Balance to <span>decision-ready statements.</span></h1>
-      <div class='hero-copy'>Accountra turns a clean Trial Balance into an AI-assisted accounting workflow: classify accounts, review exceptions, validate the numbers, and generate professional financial statements.</div>
+      <div class='hero-copy'>A calmer way to classify, review, validate and export financial statements.</div>
     </section>
     """, unsafe_allow_html=True)
-    st.markdown("<div class='hero-actions'><div class='hero-actions-copy'>Start with a balanced Trial Balance and move through a controlled review workflow.</div><div class='hero-actions-note'>Your file stays inside this session until you reset the workspace.</div></div>",unsafe_allow_html=True)
+    st.markdown("<div class='hero-actions'><div class='hero-actions-copy'>Your numbers stay visible. You stay in control.</div><div class='hero-actions-note'>Private session workspace · Excel and PDF outputs</div></div>",unsafe_allow_html=True)
     a,b=st.columns([1.15,1])
     with a:
         if st.button("Let's Get Started →", type="primary", use_container_width=True, key="v7_start"):
@@ -2659,12 +2896,10 @@ def v7_dashboard():
     with b:
         if st.button("Explore the workflow", use_container_width=True, key="v7_explore"):
             st.session_state["app_page"]="workspace"; st.session_state["workspace_section"]="upload"; st.rerun()
-    st.markdown("<div class='hero-proof'><span>Human review before export</span><span>Excel and PDF outputs</span><span>Schedule III-style statements</span></div>",unsafe_allow_html=True)
-    st.markdown("<div style='height:.8rem'></div>",unsafe_allow_html=True)
-    st.markdown("<div class='feature-grid'><div class='feature'><div class='feature-num'>01 · CLASSIFY</div><div class='feature-title'>AI-assisted review</div><div class='feature-copy'>Deterministic accounting rules first, AI fallback when an account needs interpretation.</div></div><div class='feature'><div class='feature-num'>02 · VALIDATE</div><div class='feature-title'>Know what needs attention</div><div class='feature-copy'>Balance checks, reconciliation, classification confidence and review flags in one place.</div></div><div class='feature'><div class='feature-num'>03 · REPORT</div><div class='feature-title'>Build professional statements</div><div class='feature-copy'>Schedule III-style Profit & Loss, Balance Sheet, notes and export-ready reports.</div></div></div>",unsafe_allow_html=True)
-    st.markdown("<div class='section-title'>Built for the review that happens before the report</div><div class='section-copy'>Every step keeps the numbers visible, the exceptions clear, and the final output under your control.</div>",unsafe_allow_html=True)
-    st.markdown("<div class='info-grid'><div class='info-card'><strong>Readable by default</strong><span>Large financial figures, clear hierarchy and high-contrast tables designed for long review sessions.</span></div><div class='info-card'><strong>One workspace at a time</strong><span>Move from Trial Balance to AI Review, Statements, Validation and Reports without an endless page.</span></div><div class='info-card'><strong>Human in the loop</strong><span>Every AI classification can be reviewed and overridden before statements are treated as final.</span></div></div>",unsafe_allow_html=True)
-    st.markdown("<div style='height:1.8rem'></div>",unsafe_allow_html=True)
+    st.markdown("<div class='hero-proof'><span>Human review before export</span><span>Flexible Trial Balance files</span><span>Excel and PDF outputs</span></div>",unsafe_allow_html=True)
+    st.markdown("<div class='dashboard-rail'><div class='dashboard-card'><div class='dashboard-card-num'>01 · CLASSIFY</div><div class='dashboard-card-title'>Understand the file</div><div class='dashboard-card-copy'>Find the accounts, balances and review flags.</div></div><div class='dashboard-card'><div class='dashboard-card-num'>02 · VALIDATE</div><div class='dashboard-card-title'>Check the numbers</div><div class='dashboard-card-copy'>Keep every control visible before reporting.</div></div><div class='dashboard-card'><div class='dashboard-card-num'>03 · EXPORT</div><div class='dashboard-card-title'>Share the result</div><div class='dashboard-card-copy'>Download polished working papers and statements.</div></div></div>",unsafe_allow_html=True)
+    st.markdown("<div class='dashboard-strip'><div><strong>Review-first accounting</strong><br><span>AI helps with interpretation. You approve what reaches the report.</span></div><span>Schedule III-style workflow</span></div>",unsafe_allow_html=True)
+    st.markdown("<div style='height:1.1rem'></div>",unsafe_allow_html=True)
     st.markdown("<div class='coming-soon'>Dark mode · Coming soon</div>", unsafe_allow_html=True)
     st.caption("Accountra · AI-assisted accounting workflow · Review classifications and statutory disclosures before filing.")
     v7_creator_footer()
@@ -2694,23 +2929,61 @@ def v7_workspace():
             st.markdown("<div class='panel upload-panel'><div class='panel-title'>Upload your Trial Balance</div><div class='panel-copy'>Bring in an Excel, XLS or CSV file with Account, Debit and Credit columns.</div><div class='upload-zone'><div class='upload-zone-title'>Choose your source file</div><div class='upload-zone-copy'>Your data stays in this session until you reset the workspace.</div><div class='upload-format-note'>Tip: keep one account per row and use clear Debit and Credit headers.</div></div></div>",unsafe_allow_html=True)
             if existing_source is not None:
                 st.info(f"A Trial Balance is already loaded ({len(existing_source):,} accounts). Remove it below if you want to upload a different file.")
+                v7_confirmed_upload_panel(existing_source)
                 if st.button("Remove loaded Trial Balance", key="v9_remove_loaded", use_container_width=True):
                     st.session_state["uploaded_source_df"] = None
+                    st.session_state.pop("uploaded_source_meta", None)
+                    st.session_state.pop("v7_tb_file_signature", None)
+                    st.session_state.pop("v7_tb_confirmed", None)
                     st.session_state["prepared"] = False
                     st.session_state["results"] = []
                     st.session_state["reset_nonce"] += 1
                     st.rerun()
             uploaded=st.file_uploader("Upload Trial Balance",type=["xlsx","xls","csv"],label_visibility="collapsed",key=f"v7_upload_{st.session_state['reset_nonce']}")
-            if uploaded:
+            if uploaded and existing_source is None:
                 st.success(f"File ready: {uploaded.name}")
                 if st.button("Remove file & choose another", key="v9_remove_upload", use_container_width=True):
                     st.session_state["uploaded_source_df"] = None
+                    st.session_state.pop("uploaded_source_meta", None)
+                    st.session_state.pop("v7_tb_file_signature", None)
+                    st.session_state.pop("v7_tb_confirmed", None)
                     st.session_state["prepared"] = False
                     st.session_state["results"] = []
                     st.session_state["reset_nonce"] += 1
                     st.rerun()
                 try:
-                    source=pd.read_csv(uploaded) if uploaded.name.lower().endswith('.csv') else pd.read_excel(uploaded)
+                    detected=v7_extract_trial_balance(uploaded)
+                    if detected.get("data") is None:
+                        st.warning("Accountra could not confidently find Account and balance data in this workbook.")
+                        st.info("Try a cleaner export, or ask the AI interpreter to inspect the workbook and prepare a reviewable Trial Balance.")
+                        if st.button("Ask AI to interpret this workbook →",type="primary",use_container_width=True,key="v7_ai_interpret_workbook"):
+                            with st.spinner("Reading the workbook and preparing a Trial Balance preview…"):
+                                ai_source, clarifications=build_ai_trial_balance(extract_source_text(uploaded))
+                            if ai_source is None:
+                                st.error(str(clarifications))
+                            else:
+                                st.session_state["uploaded_source_df"]=ai_source[["Account","Debit","Credit"]].copy()
+                                st.session_state["uploaded_source_meta"]={"sheet":"AI interpretation","header_row":"n/a","mode":"AI reconstructed Trial Balance","confidence":None,"clarifications":clarifications}
+                                st.session_state["v7_tb_confirmed"]=True
+                                st.rerun()
+                        st.stop()
+                    source=detected["data"]
+                    preview=source.head(8).copy()
+                    preview["Debit"]=preview["Debit"].map(indian_currency)
+                    preview["Credit"]=preview["Credit"].map(indian_currency)
+                    st.markdown(f"<div class='phase6-next'><strong>Detected:</strong> {detected['sheet']} · {detected['mode']} · {len(source):,} usable account rows.</div>",unsafe_allow_html=True)
+                    st.dataframe(preview,use_container_width=True,hide_index=True,height=290)
+                    if detected.get("needs_review"):
+                        st.warning("More than one possible table or an unusual layout was detected. Confirm the preview before continuing.")
+                    else:
+                        st.success("This looks like a Trial Balance. Confirm the preview before classification.")
+                    if not st.session_state.get("v7_tb_confirmed"):
+                        if st.button("Use detected Trial Balance →",type="primary",use_container_width=True,key="v7_confirm_detected"):
+                            st.session_state["uploaded_source_df"]=source
+                            st.session_state["uploaded_source_meta"]={"sheet":detected["sheet"],"header_row":detected["header_row"],"mode":detected["mode"],"confidence":detected["confidence"]}
+                            st.session_state["v7_tb_confirmed"]=True
+                            st.rerun()
+                        st.stop()
                     source.columns=(source.columns.astype(str).str.strip().str.lower().str.replace('₹','',regex=False).str.replace('(','',regex=False).str.replace(')','',regex=False).str.strip())
                     source=source.rename(columns={"account":"Account","account name":"Account","ledger":"Account","ledger account":"Account","particulars":"Account","debit":"Debit","debits":"Debit","dr":"Debit","credit":"Credit","credits":"Credit","cr":"Credit"})
                     if not {"Account","Debit","Credit"}.issubset(source.columns): st.error(f"Required columns missing. Detected: {source.columns.tolist()}")
@@ -3015,7 +3288,11 @@ st.markdown(
 # ROUTE
 # =========================================================
 
-if st.session_state.get("app_page") == "dashboard":
+if st.session_state.get("app_page") == "about":
+    v7_public_page("about")
+elif st.session_state.get("app_page") == "contact":
+    v7_public_page("contact")
+elif st.session_state.get("app_page") == "dashboard":
     v7_dashboard()
 else:
     v7_workspace()
