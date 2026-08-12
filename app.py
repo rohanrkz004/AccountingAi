@@ -2214,12 +2214,15 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 [data-testid="stHeader"], header, footer, #MainMenu, [data-testid="stToolbar"] {{ display:none!important; }}
 [data-testid="stSidebar"] {{ display:none!important; }}
 
-.a-topbar {{ display:flex; align-items:center; justify-content:space-between; padding:.2rem 0 1rem; border-bottom:1px solid var(--a-line); margin-bottom:1.4rem; }}
+.a-topbar {{ display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.2rem 0 1rem; border-bottom:1px solid var(--a-line); margin-bottom:1.4rem; }}
 .a-brand {{ display:flex; align-items:center; gap:.75rem; font-weight:800; color:var(--a-ink); }}
 .a-logo {{ width:40px; height:40px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg,var(--a-primary),var(--a-cyan)); color:white; font-weight:900; font-size:1.25rem; box-shadow:0 8px 22px rgba(88,101,242,.25); }}
 .a-brand-name {{ font-size:1.18rem; letter-spacing:-.02em; }}
 .a-brand-sub {{ display:block; color:var(--a-muted); font-size:.78rem; font-weight:600; margin-top:.1rem; }}
+.a-top-actions {{ display:flex; align-items:center; justify-content:flex-end; gap:.8rem; }}
 .a-top-meta {{ color:var(--a-muted); font-size:.86rem; font-weight:700; }}
+.a-session-pill {{ display:inline-flex; align-items:center; gap:.45rem; padding:.45rem .7rem; border:1px solid var(--a-line); border-radius:999px; background:var(--a-surface); color:var(--a-muted); font-size:.76rem; font-weight:800; white-space:nowrap; }}
+.a-session-dot {{ width:.48rem; height:.48rem; border-radius:50%; background:var(--a-success); box-shadow:0 0 0 3px rgba(22,163,74,.12); }}
 
 .hero {{ position:relative; overflow:hidden; border:1px solid rgba(88,101,242,.18); border-radius:28px; padding:4.4rem 4.5rem 3.7rem; background:linear-gradient(135deg,#ffffff 0%,#eef2ff 62%,#e0f7ff 100%); box-shadow:var(--a-shadow); }}
 .hero:after {{ content:""; position:absolute; width:380px; height:380px; border-radius:50%; right:-130px; top:-210px; border:1px solid rgba(88,101,242,.18); box-shadow:0 0 0 55px rgba(88,101,242,.03),0 0 0 110px rgba(88,101,242,.02); }}
@@ -2259,6 +2262,9 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .upload-zone-copy {{ color:var(--a-muted); margin-top:.35rem; }}
 .context-panel {{ position:sticky; top:1rem; }}
 .context-label {{ font-size:.82rem; text-transform:uppercase; letter-spacing:.09em; font-weight:900; color:var(--a-primary); margin-bottom:.9rem; }}
+.context-panel-heading {{ padding:.15rem 0 .85rem; border-bottom:1px solid var(--a-line); margin-bottom:.9rem; }}
+.context-panel-heading .context-label {{ margin-bottom:.25rem; }}
+.context-panel-help {{ color:var(--a-muted); font-size:.86rem; line-height:1.5; }}
 
 .kpi-grid {{ display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin:1.2rem 0; }}
 .kpi {{ background:var(--a-surface); border:1px solid var(--a-line); border-radius:18px; padding:1.2rem 1.3rem; min-height:125px; }}
@@ -2268,6 +2274,15 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 
 .nav-strip {{ display:flex; gap:.55rem; flex-wrap:wrap; padding:.75rem; border:1px solid var(--a-line); background:var(--a-surface); border-radius:16px; margin:1rem 0 1.3rem; }}
 .nav-help {{ color:var(--a-muted); font-size:.84rem; margin:.35rem .1rem .2rem; }}
+
+.workflow-stepper {{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:.45rem; padding:.55rem; margin:-.35rem 0 1.25rem; border:1px solid var(--a-line); border-radius:16px; background:var(--a-surface); box-shadow:0 4px 18px rgba(15,23,42,.025); }}
+.workflow-step {{ display:flex; align-items:center; gap:.55rem; min-width:0; padding:.65rem .7rem; border-radius:11px; color:var(--a-muted); font-size:.76rem; font-weight:850; line-height:1.2; }}
+.workflow-step-marker {{ display:grid; place-items:center; flex:0 0 1.55rem; width:1.55rem; height:1.55rem; border:1px solid var(--a-line-strong); border-radius:50%; color:var(--a-muted); font-size:.7rem; font-variant-numeric:tabular-nums; }}
+.workflow-step-label {{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
+.workflow-step.is-active {{ background:var(--a-primary-soft); color:var(--a-primary); }}
+.workflow-step.is-active .workflow-step-marker {{ border-color:var(--a-primary); background:var(--a-primary); color:#fff; box-shadow:0 0 0 3px rgba(88,101,242,.12); }}
+.workflow-step.is-complete {{ color:var(--a-ink); }}
+.workflow-step.is-complete .workflow-step-marker {{ border-color:rgba(22,163,74,.28); background:rgba(22,163,74,.09); color:var(--a-success); }}
 
 .back-row {{ display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }}
 .back-label {{ color:var(--a-muted); font-weight:700; font-size:.9rem; }}
@@ -2307,7 +2322,13 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
   .kpi-grid {{ grid-template-columns:1fr; }}
   .workspace-title {{ font-size:1.8rem; }}
   .a-top-meta {{ display:none; }}
+  .a-top-actions {{ gap:0; }}
+  .a-session-pill {{ font-size:.7rem; padding:.4rem .58rem; }}
   .main .block-container {{ padding:.9rem .75rem 2.5rem!important; }}
+  .workflow-stepper {{ display:flex; overflow-x:auto; gap:.35rem; scrollbar-width:none; }}
+  .workflow-stepper::-webkit-scrollbar {{ display:none; }}
+  .workflow-step {{ flex:0 0 7.6rem; flex-direction:column; justify-content:center; gap:.35rem; padding:.6rem .45rem; text-align:center; font-size:.68rem; }}
+  .workflow-step-label {{ max-width:100%; }}
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -2317,7 +2338,10 @@ def v7_topbar():
     st.markdown("""
     <div class='a-topbar'>
       <div class='a-brand'><div class='a-logo'>A</div><div><div class='a-brand-name'>Accountra</div><div class='a-brand-sub'>AI-powered accounting workspace</div></div></div>
-      <div class='a-top-meta'>Financial intelligence · Review before filing</div>
+      <div class='a-top-actions'>
+        <div class='a-session-pill'><span class='a-session-dot'></span>Session workspace</div>
+        <div class='a-top-meta'>Financial intelligence &middot; Review before filing</div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2352,6 +2376,25 @@ def v7_back_control():
 
 def v7_header(title, subtitle):
     st.markdown(f"<div class='workspace-title'>{title}</div><div class='workspace-sub'>{subtitle}</div>", unsafe_allow_html=True)
+
+
+def v7_stepper(active):
+    """Render workflow state without changing the existing navigation logic."""
+    steps=[
+        ("upload", "Upload"),
+        ("trial_balance", "Trial Balance"),
+        ("ai_review", "AI Review"),
+        ("statements", "Statements"),
+        ("validation", "Validate"),
+        ("reports", "Export"),
+    ]
+    active_index=next((i for i,(key,_) in enumerate(steps) if key==active), 0)
+    html=[]
+    for index,(key,label) in enumerate(steps):
+        state="is-active" if index==active_index else "is-complete" if index<active_index else ""
+        marker="✓" if index<active_index else str(index+1)
+        html.append(f"<div class='workflow-step {state}'><span class='workflow-step-marker'>{marker}</span><span class='workflow-step-label'>{label}</span></div>")
+    st.markdown(f"<div class='workflow-stepper' aria-label='Accounting workflow progress'>{''.join(html)}</div>", unsafe_allow_html=True)
 
 
 def v7_build_results(df):
@@ -2538,13 +2581,13 @@ def v7_dashboard():
 
 
 def v7_context_panel():
-    st.markdown("<div class='context-label'>Report context</div>",unsafe_allow_html=True)
+    st.markdown("<div class='context-panel-heading'><div class='context-label'>Report context</div><div class='context-panel-help'>These details flow into statements, notes and exports.</div></div>",unsafe_allow_html=True)
     st.text_input("Company / Entity Name", key="company_name")
     st.text_input("CIN / Registration No.", key="cin")
     st.date_input("Date of filing / reporting", key="reporting_date")
     st.number_input("Movement review threshold (%)",1.0,100.0,step=5.0,key="materiality_threshold")
     fy=f"{st.session_state['reporting_date'].year-1}-{str(st.session_state['reporting_date'].year)[-2:]}" if st.session_state['reporting_date'].month<=3 else f"{st.session_state['reporting_date'].year}-{str(st.session_state['reporting_date'].year+1)[-2:]}"
-    st.markdown(f"<div style='margin-top:1rem;padding:.9rem;border-radius:12px;background:var(--a-surface-2);color:var(--a-muted)'><strong style='color:var(--a-ink)'>Reporting year</strong><br>{fy}<br><br>These details flow into statements, notes and exports.</div>",unsafe_allow_html=True)
+    st.markdown(f"<div style='margin-top:1rem;padding:.9rem;border-radius:12px;background:var(--a-surface-2);color:var(--a-muted)'><strong style='color:var(--a-ink)'>Reporting year</strong><br>{fy}</div>",unsafe_allow_html=True)
 
 
 def v7_workspace():
@@ -2553,6 +2596,7 @@ def v7_workspace():
     st.markdown("<div class='workspace-head'><div><div class='workspace-title'>Financial workspace</div><div class='workspace-sub'>Prepare, review and export your accounting statements from one controlled workflow.</div></div></div>",unsafe_allow_html=True)
 
     if not st.session_state.get("prepared") or st.session_state.get("workspace_section") == "upload":
+        v7_stepper("upload")
         existing_source = st.session_state.get("uploaded_source_df")
         left,right=st.columns([1.7,1],gap="large")
         with left:
@@ -2604,9 +2648,7 @@ def v7_workspace():
                     st.error("Could not read this file. Please check the format and columns.")
                     st.exception(e)
         with right:
-            st.markdown("<div class='panel context-panel'>",unsafe_allow_html=True)
             v7_context_panel()
-            st.markdown("</div>",unsafe_allow_html=True)
         st.markdown("<div class='section-title'>Before you continue</div><div class='section-copy'>Keep the upload clean and let Accountra handle classification and validation after the file is balanced.</div>",unsafe_allow_html=True)
         v7_feedback()
         return
@@ -2616,7 +2658,8 @@ def v7_workspace():
     data=v7_prepare_data(results_df)
     nav=st.session_state.get("workspace_section","trial_balance")
     buttons=[("trial_balance","Trial Balance"),("ai_review","AI Review"),("statements","Financial Statements"),("validation","Validation"),("reports","Reports & Export")]
-    st.markdown("<div class='nav-help'>Workspace sections · one view at a time</div>",unsafe_allow_html=True)
+    v7_stepper(nav)
+    st.markdown("<div class='nav-help'>Workspace sections &middot; one view at a time</div>",unsafe_allow_html=True)
     cols=st.columns(len(buttons))
     for col,(key,label) in zip(cols,buttons):
         with col:
