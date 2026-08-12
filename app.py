@@ -1704,51 +1704,6 @@ st.markdown(
         --acc-radius-lg: 22px;
     }
 
-    /* Streamlit dark theme + OS dark preference */
-    [data-theme="dark"],
-    body[data-theme="dark"],
-    .stApp[data-theme="dark"] {
-        --acc-primary: #818cf8;
-        --acc-primary-strong: #8b8df8;
-        --acc-primary-soft: rgba(129,140,248,.14);
-        --acc-cyan: #22d3ee;
-        --acc-success: #4ade80;
-        --acc-warning: #fbbf24;
-        --acc-danger: #f87171;
-        --acc-ink: #f3f4f6;
-        --acc-muted: #a7afbf;
-        --acc-line: #2a3040;
-        --acc-line-strong: #3a4253;
-        --acc-bg: #0b0f17;
-        --acc-surface: #111722;
-        --acc-surface-soft: #151b27;
-        --acc-sidebar: #0e131d;
-        --acc-shadow-sm: 0 1px 2px rgba(0,0,0,.22), 0 7px 22px rgba(0,0,0,.18);
-        --acc-shadow-md: 0 18px 42px rgba(0,0,0,.30);
-    }
-
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --acc-primary: #818cf8;
-            --acc-primary-strong: #8b8df8;
-            --acc-primary-soft: rgba(129,140,248,.14);
-            --acc-cyan: #22d3ee;
-            --acc-success: #4ade80;
-            --acc-warning: #fbbf24;
-            --acc-danger: #f87171;
-            --acc-ink: #f3f4f6;
-            --acc-muted: #a7afbf;
-            --acc-line: #2a3040;
-            --acc-line-strong: #3a4253;
-            --acc-bg: #0b0f17;
-            --acc-surface: #111722;
-            --acc-surface-soft: #151b27;
-            --acc-sidebar: #0e131d;
-            --acc-shadow-sm: 0 1px 2px rgba(0,0,0,.22), 0 7px 22px rgba(0,0,0,.18);
-            --acc-shadow-md: 0 18px 42px rgba(0,0,0,.30);
-        }
-    }
-
     .stApp,
     [data-testid="stAppViewContainer"],
     [data-testid="stMain"] {
@@ -2058,11 +2013,6 @@ st.markdown(
         transform:translateY(-1px);
         box-shadow:0 11px 24px rgba(79,70,229,.26);
     }
-    [data-theme="dark"] .acc-download-link,
-    body[data-theme="dark"] .acc-download-link {
-        color:#fff !important;
-    }
-
     /* ---------- Validation ---------- */
     .validation-pass { padding: .72rem .85rem; border-radius: 11px; border: 1px solid rgba(34,197,94,.22); background: rgba(34,197,94,.055); margin: .35rem 0; }
     .validation-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .55rem; }
@@ -2231,8 +2181,6 @@ if "app_page" not in st.session_state:
     st.session_state["app_page"] = "dashboard"
 if "workspace_section" not in st.session_state:
     st.session_state["workspace_section"] = "upload"
-if "theme_mode" not in st.session_state:
-    st.session_state["theme_mode"] = "light"
 if "company_name" not in st.session_state:
     st.session_state["company_name"] = "ABC Private Limited"
 if "cin" not in st.session_state:
@@ -2246,18 +2194,16 @@ if "prepared" not in st.session_state:
 if "reset_nonce" not in st.session_state:
     st.session_state["reset_nonce"] = 0
 
-THEME_DARK = st.session_state.get("theme_mode") == "dark"
-
 st.markdown(f"""
 <style>
 :root {{
   --a-primary:#5865f2; --a-primary-2:#3b82f6; --a-cyan:#06b6d4;
-  --a-ink:{'#f8fafc' if THEME_DARK else '#111827'};
-  --a-muted:{'#a9b4c6' if THEME_DARK else '#667085'};
-  --a-bg:{'#0b1020' if THEME_DARK else '#f5f7fb'};
-  --a-surface:{'#111827' if THEME_DARK else '#ffffff'};
-  --a-surface-2:{'#172033' if THEME_DARK else '#f8fafc'};
-  --a-line:{'#263247' if THEME_DARK else '#e5eaf2'};
+  --a-ink:#111827;
+  --a-muted:#667085;
+  --a-bg:#f5f7fb;
+  --a-surface:#ffffff;
+  --a-surface-2:#f8fafc;
+  --a-line:#e5eaf2;
   --a-success:#16a34a; --a-warning:#d97706; --a-danger:#dc2626;
   --a-shadow:0 14px 45px rgba(15,23,42,.08);
   --a-radius:20px;
@@ -2275,13 +2221,16 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .a-brand-sub {{ display:block; color:var(--a-muted); font-size:.78rem; font-weight:600; margin-top:.1rem; }}
 .a-top-meta {{ color:var(--a-muted); font-size:.86rem; font-weight:700; }}
 
-.hero {{ position:relative; overflow:hidden; border:1px solid rgba(88,101,242,.18); border-radius:28px; padding:4.4rem 4.5rem 3.7rem; background:linear-gradient(135deg,{ '#151d34' if THEME_DARK else '#ffffff'} 0%,{ '#18234a' if THEME_DARK else '#eef2ff'} 62%,{ '#102f40' if THEME_DARK else '#e0f7ff'} 100%); box-shadow:var(--a-shadow); }}
+.hero {{ position:relative; overflow:hidden; border:1px solid rgba(88,101,242,.18); border-radius:28px; padding:4.4rem 4.5rem 3.7rem; background:linear-gradient(135deg,#ffffff 0%,#eef2ff 62%,#e0f7ff 100%); box-shadow:var(--a-shadow); }}
 .hero:after {{ content:""; position:absolute; width:380px; height:380px; border-radius:50%; right:-130px; top:-210px; border:1px solid rgba(88,101,242,.18); box-shadow:0 0 0 55px rgba(88,101,242,.03),0 0 0 110px rgba(88,101,242,.02); }}
 .eyebrow {{ color:var(--a-primary); font-weight:900; font-size:.82rem; letter-spacing:.14em; text-transform:uppercase; margin-bottom:1rem; }}
 .hero h1 {{ font-size:clamp(3rem,6vw,5.7rem)!important; line-height:.98!important; letter-spacing:-.055em!important; margin:0!important; max-width:1050px; color:var(--a-ink)!important; }}
 .hero h1 span {{ background:linear-gradient(90deg,var(--a-primary),var(--a-cyan)); -webkit-background-clip:text; background-clip:text; color:transparent; }}
 .hero-copy {{ max-width:790px; margin-top:1.35rem; font-size:1.18rem; line-height:1.75; color:var(--a-muted); }}
 .hero-actions {{ margin-top:2rem; }}
+.coming-soon {{ display:inline-flex; margin-top:1.1rem; padding:.55rem .8rem; border:1px solid var(--a-line); border-radius:999px; background:var(--a-surface-2); color:var(--a-muted); font-size:.82rem; font-weight:800; }}
+.back-label {{ padding:.75rem 0; color:var(--a-muted); font-size:.92rem; font-weight:650; }}
+
 
 .feature-grid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-top:1rem; }}
 .feature {{ background:var(--a-surface); border:1px solid var(--a-line); border-radius:18px; padding:1.35rem; box-shadow:0 5px 20px rgba(15,23,42,.035); transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease; min-height:145px; }}
@@ -2373,15 +2322,32 @@ def v7_topbar():
     """, unsafe_allow_html=True)
 
 
-def v7_back_to_dashboard():
-    left, right = st.columns([1,5])
+def v7_back_control():
+    """Hierarchical back navigation: inner workspaces never jump straight to Dashboard."""
+    current = st.session_state.get("workspace_section", "upload")
+    if current == "upload":
+        label = "← Back to Dashboard"
+        target = "dashboard"
+    else:
+        label = "← Back"
+        previous = {
+            "trial_balance": "upload",
+            "ai_review": "trial_balance",
+            "statements": "ai_review",
+            "validation": "statements",
+            "reports": "validation",
+        }
+        target = previous.get(current, "upload")
+    left, right = st.columns([1.1, 4.9])
     with left:
-        if st.button("← Back to Dashboard", key="v7_back_dashboard", use_container_width=True):
-            st.session_state["app_page"] = "dashboard"
-            st.session_state["workspace_section"] = "upload"
+        if st.button(label, key=f"v9_back_{current}", use_container_width=True):
+            st.session_state["workspace_section"] = target
+            if target == "dashboard":
+                st.session_state["app_page"] = "dashboard"
             st.rerun()
     with right:
-        st.markdown("<div class='back-label'>Your workspace is saved for this session.</div>", unsafe_allow_html=True)
+        helper = "Your workspace is saved for this session." if current == "upload" else "Use Back to return to the previous step."
+        st.markdown(f"<div class='back-label'>{helper}</div>", unsafe_allow_html=True)
 
 
 def v7_header(title, subtitle):
@@ -2567,11 +2533,8 @@ def v7_dashboard():
     st.markdown("<div class='section-title'>Built for the review that happens before the report</div>",unsafe_allow_html=True)
     st.markdown("<div class='info-grid'><div class='info-card'><strong>Readable by default</strong><span>Large financial figures, clear hierarchy and high-contrast tables designed for long review sessions.</span></div><div class='info-card'><strong>One workspace at a time</strong><span>Move from Trial Balance to AI Review, Statements, Validation and Reports without an endless page.</span></div><div class='info-card'><strong>Human in the loop</strong><span>Every AI classification can be reviewed and overridden before statements are treated as final.</span></div></div>",unsafe_allow_html=True)
     st.markdown("<div style='height:1.8rem'></div>",unsafe_allow_html=True)
-    tcol, dcol=st.columns([4,1])
-    with tcol: st.caption("Accountra · AI-assisted accounting workflow · Review classifications and statutory disclosures before filing.")
-    with dcol:
-        if st.button("Dark mode" if not THEME_DARK else "Light mode", key="v7_theme", use_container_width=True):
-            st.session_state["theme_mode"]="dark" if not THEME_DARK else "light"; st.rerun()
+    st.markdown("<div class='coming-soon'>Dark mode · Coming soon</div>", unsafe_allow_html=True)
+    st.caption("Accountra · AI-assisted accounting workflow · Review classifications and statutory disclosures before filing.")
 
 
 def v7_context_panel():
@@ -2586,16 +2549,31 @@ def v7_context_panel():
 
 def v7_workspace():
     v7_topbar()
-    v7_back_to_dashboard()
+    v7_back_control()
     st.markdown("<div class='workspace-head'><div><div class='workspace-title'>Financial workspace</div><div class='workspace-sub'>Prepare, review and export your accounting statements from one controlled workflow.</div></div></div>",unsafe_allow_html=True)
 
-    if not st.session_state.get("prepared"):
+    if not st.session_state.get("prepared") or st.session_state.get("workspace_section") == "upload":
+        existing_source = st.session_state.get("uploaded_source_df")
         left,right=st.columns([1.7,1],gap="large")
         with left:
             st.markdown("<div class='panel upload-panel'><div class='panel-title'>Upload your Trial Balance</div><div class='panel-copy'>Bring in an Excel, XLS or CSV file with Account, Debit and Credit columns.</div><div class='upload-zone'><div class='upload-zone-title'>Choose your source file</div><div class='upload-zone-copy'>Your data stays in this session until you reset the workspace.</div></div></div>",unsafe_allow_html=True)
+            if existing_source is not None:
+                st.info(f"A Trial Balance is already loaded ({len(existing_source):,} accounts). Remove it below if you want to upload a different file.")
+                if st.button("Remove loaded Trial Balance", key="v9_remove_loaded", use_container_width=True):
+                    st.session_state["uploaded_source_df"] = None
+                    st.session_state["prepared"] = False
+                    st.session_state["results"] = []
+                    st.session_state["reset_nonce"] += 1
+                    st.rerun()
             uploaded=st.file_uploader("Upload Trial Balance",type=["xlsx","xls","csv"],label_visibility="collapsed",key=f"v7_upload_{st.session_state['reset_nonce']}")
             if uploaded:
                 st.success(f"File ready: {uploaded.name}")
+                if st.button("Remove file & choose another", key="v9_remove_upload", use_container_width=True):
+                    st.session_state["uploaded_source_df"] = None
+                    st.session_state["prepared"] = False
+                    st.session_state["results"] = []
+                    st.session_state["reset_nonce"] += 1
+                    st.rerun()
                 try:
                     source=pd.read_csv(uploaded) if uploaded.name.lower().endswith('.csv') else pd.read_excel(uploaded)
                     source.columns=(source.columns.astype(str).str.strip().str.lower().str.replace('₹','',regex=False).str.replace('(','',regex=False).str.replace(')','',regex=False).str.strip())
