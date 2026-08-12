@@ -2926,7 +2926,7 @@ def v7_workspace():
         existing_source = st.session_state.get("uploaded_source_df")
         left,right=st.columns([1.7,1],gap="large")
         with left:
-            st.markdown("<div class='panel upload-panel'><div class='panel-title'>Upload your Trial Balance</div><div class='panel-copy'>Bring in an Excel, XLS or CSV file with Account, Debit and Credit columns.</div><div class='upload-zone'><div class='upload-zone-title'>Choose your source file</div><div class='upload-zone-copy'>Your data stays in this session until you reset the workspace.</div><div class='upload-format-note'>Tip: keep one account per row and use clear Debit and Credit headers.</div></div></div>",unsafe_allow_html=True)
+            st.markdown("<div class='panel upload-panel'><div class='panel-title'>Upload your Trial Balance</div><div class='panel-copy'>Bring in an Excel, XLS or CSV export. Accountra will look for the Trial Balance data and normalize the balance columns.</div><div class='upload-zone'><div class='upload-zone-title'>Choose your source file</div><div class='upload-zone-copy'>Your data stays in this session until you reset the workspace.</div><div class='upload-format-note'>No strict template required. Clear account and balance labels help Accountra confirm the right table.</div></div></div>",unsafe_allow_html=True)
             if existing_source is not None:
                 st.info(f"A Trial Balance is already loaded ({len(existing_source):,} accounts). Remove it below if you want to upload a different file.")
                 v7_confirmed_upload_panel(existing_source)
