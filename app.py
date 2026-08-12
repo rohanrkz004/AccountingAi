@@ -44,6 +44,7 @@ from reportlab.platypus import (
 
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = BASE_DIR / "assets" / "accountra_mark.png"
+UI_ICON_PATH = BASE_DIR / "assets" / "accountra_mark.png"
 CREATOR_NAME = "Rohan A."
 
 
@@ -338,8 +339,8 @@ def make_schedule3_excel(
     if LOGO_PATH.exists():
         try:
             logo = XLImage(str(LOGO_PATH))
-            logo.width = 96
-            logo.height = 96
+            logo.width = 260
+            logo.height = 194
             cover.add_image(logo, "A1")
         except Exception:
             pass
@@ -453,14 +454,13 @@ def make_schedule3_pdf(
 
     if LOGO_PATH.exists():
         try:
-            logo = RLImage(str(LOGO_PATH), width=72, height=72)
+            logo = RLImage(str(LOGO_PATH), width=150, height=112)
             logo.hAlign = "CENTER"
             story.append(logo)
             story.append(Spacer(1, 5))
         except Exception:
             pass
 
-    # Keep the PDF brand asset-free; the title below carries the Accountra identity.
     story.extend([
         Paragraph(company_name, title_style),
         Paragraph(
@@ -1621,2726 +1621,816 @@ def clear_accounting_session():
     st.session_state["reset_nonce"] = int(st.session_state.get("reset_nonce", 0)) + 1
 
 # =========================================================
-# STREAMLIT APP — SCHEDULE III PRESENTATION
+
+# =========================================================
+# ACCOUNTRA V5 — PRODUCT WORKSPACE UI
 # =========================================================
 
 st.set_page_config(
-    page_title="AI Accounting Software | Financial Statement Generator | Accountra",
-    page_icon="assets/accountra_favicon.png",
+    page_title="Accountra — AI Financial Workspace",
+    page_icon=str(BASE_DIR / "assets" / "accountra_favicon.png"),
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# =========================================================
-# ACCOUNTRA — HIDE STREAMLIT BRANDING
-# =========================================================
-st.markdown(
-    """
-    <style>
-        /* Remove Streamlit footer */
-        footer {
-            visibility: hidden !important;
-            display: none !important;
-        }
+# -----------------------------
+# State
+# -----------------------------
 
-        /* Remove Streamlit top header/toolbar */
-        header {
-            visibility: hidden !important;
-            display: none !important;
-        }
-
-        /* Remove Streamlit toolbar */
-        [data-testid="stToolbar"] {
-            display: none !important;
-            visibility: hidden !important;
-        }
-
-        /* Remove Streamlit decoration line */
-        [data-testid="stDecoration"] {
-            display: none !important;
-        }
-
-        /* Remove status/developer widget */
-        [data-testid="stStatusWidget"] {
-            display: none !important;
-        }
-
-        /* Remove Streamlit menu */
-        #MainMenu {
-            display: none !important;
-            visibility: hidden !important;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)    
-st.markdown(
-    """
-    <style>
-    /* =====================================================
-       ACCOUNTRA — V2 PRODUCT UI SYSTEM
-       Presentation layer only. Accounting logic is untouched.
-       ===================================================== */
-
-    :root {
-        --acc-primary: #5b5cf0;
-        --acc-primary-strong: #4f46e5;
-        --acc-primary-soft: rgba(91,92,240,.10);
-        --acc-cyan: #0891b2;
-        --acc-success: #16a34a;
-        --acc-warning: #d97706;
-        --acc-danger: #dc2626;
-        --acc-ink: #111827;
-        --acc-muted: #667085;
-        --acc-line: #e7eaf0;
-        --acc-line-strong: #d9dee8;
-        --acc-bg: #f7f8fc;
-        --acc-surface: #ffffff;
-        --acc-surface-soft: #f9fafc;
-        --acc-sidebar: #fbfbfd;
-        --acc-shadow-sm: 0 1px 2px rgba(16,24,40,.04), 0 5px 18px rgba(16,24,40,.045);
-        --acc-shadow-md: 0 12px 32px rgba(16,24,40,.08);
-        --acc-radius: 16px;
-        --acc-radius-lg: 22px;
+def init_ui_state():
+    defaults = {
+        "app_page": "home",
+        "company_name": "ABC Private Limited",
+        "cin": "",
+        "business_nature": "",
+        "reporting_date": date.today(),
+        "materiality_threshold": 20.0,
+        "reset_nonce": 0,
+        "file_token": None,
+        "prepared": False,
+        "results": None,
+        "comparative_results": None,
+        "comparative_loaded": False,
+        "generated_tb_confirmed": False,
+        "input_mode": "trial_balance",
+        "theme_mode": "system",
     }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
-    /* Streamlit dark theme + OS dark preference */
-    [data-theme="dark"],
-    body[data-theme="dark"],
-    .stApp[data-theme="dark"] {
-        --acc-primary: #818cf8;
-        --acc-primary-strong: #8b8df8;
-        --acc-primary-soft: rgba(129,140,248,.14);
-        --acc-cyan: #22d3ee;
-        --acc-success: #4ade80;
-        --acc-warning: #fbbf24;
-        --acc-danger: #f87171;
-        --acc-ink: #f3f4f6;
-        --acc-muted: #a7afbf;
-        --acc-line: #2a3040;
-        --acc-line-strong: #3a4253;
-        --acc-bg: #0b0f17;
-        --acc-surface: #111722;
-        --acc-surface-soft: #151b27;
-        --acc-sidebar: #0e131d;
-        --acc-shadow-sm: 0 1px 2px rgba(0,0,0,.22), 0 7px 22px rgba(0,0,0,.18);
-        --acc-shadow-md: 0 18px 42px rgba(0,0,0,.30);
-    }
+init_ui_state()
 
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --acc-primary: #818cf8;
-            --acc-primary-strong: #8b8df8;
-            --acc-primary-soft: rgba(129,140,248,.14);
-            --acc-cyan: #22d3ee;
-            --acc-success: #4ade80;
-            --acc-warning: #fbbf24;
-            --acc-danger: #f87171;
-            --acc-ink: #f3f4f6;
-            --acc-muted: #a7afbf;
-            --acc-line: #2a3040;
-            --acc-line-strong: #3a4253;
-            --acc-bg: #0b0f17;
-            --acc-surface: #111722;
-            --acc-surface-soft: #151b27;
-            --acc-sidebar: #0e131d;
-            --acc-shadow-sm: 0 1px 2px rgba(0,0,0,.22), 0 7px 22px rgba(0,0,0,.18);
-            --acc-shadow-md: 0 18px 42px rgba(0,0,0,.30);
-        }
-    }
+# -----------------------------
+# Premium visual system
+# -----------------------------
 
-    .stApp,
-    [data-testid="stAppViewContainer"],
-    [data-testid="stMain"] {
-        background: var(--acc-bg) !important;
-        color: var(--acc-ink) !important;
-    }
+st.markdown(r'''
+<style>
+:root {
+  --acc-primary:#5b5ce2;
+  --acc-primary-2:#7c6df2;
+  --acc-cyan:#16a6b6;
+  --acc-ink:#111827;
+  --acc-muted:#667085;
+  --acc-line:#e7eaf0;
+  --acc-line-strong:#d8dce6;
+  --acc-bg:#f6f7fb;
+  --acc-surface:#ffffff;
+  --acc-surface-2:#fbfcfe;
+  --acc-success:#159570;
+  --acc-warning:#c77a16;
+  --acc-danger:#d84c5b;
+  --acc-radius:18px;
+  --acc-shadow:0 10px 35px rgba(15,23,42,.06);
+  --acc-shadow-hover:0 18px 48px rgba(15,23,42,.10);
+}
 
-    .block-container {
-        max-width: 1440px !important;
-        padding-top: 1.15rem !important;
-        padding-bottom: 4rem !important;
-        padding-left: clamp(1rem, 3vw, 2.4rem) !important;
-        padding-right: clamp(1rem, 3vw, 2.4rem) !important;
-    }
+html, body, [class*="css"] {
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
 
-    html, body, [class*="css"] {
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system,
-                     BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
+[data-testid="stAppViewContainer"] { background:var(--acc-bg); }
+.block-container { max-width:1480px !important; padding:1.2rem 2rem 4rem !important; }
+header[data-testid="stHeader"] { background:transparent !important; }
+footer, #MainMenu, [data-testid="stToolbar"], [data-testid="stDecoration"] { display:none !important; }
 
-    h1, h2, h3, h4, p, label, span, div {
-        text-rendering: optimizeLegibility;
-    }
+/* Sidebar */
+section[data-testid="stSidebar"] {
+  background:var(--acc-surface) !important;
+  border-right:1px solid var(--acc-line) !important;
+  min-width:245px !important;
+  max-width:245px !important;
+}
+section[data-testid="stSidebar"] > div { padding:1.2rem .9rem 1rem !important; }
+section[data-testid="stSidebar"] .block-container { padding:0 !important; }
 
-    h1, h2, h3, h4 {
-        letter-spacing: -.025em;
-        color: var(--acc-ink);
-    }
+.brand {
+  display:flex; align-items:center; gap:.7rem; padding:.4rem .45rem 1.35rem;
+}
+.brand-mark {
+  width:38px; height:38px; border-radius:12px; object-fit:cover;
+  box-shadow:0 7px 18px rgba(91,92,226,.20);
+}
+.brand-name { font-weight:850; font-size:1.05rem; letter-spacing:-.03em; color:var(--acc-ink); }
+.brand-sub { font-size:.67rem; color:var(--acc-muted); margin-top:.1rem; }
 
-    h2 { margin-top: 1.45rem !important; margin-bottom: .65rem !important; }
-    h3 { margin-top: 1rem !important; }
+.nav-label { font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.10em; color:#98a0b3; padding:.45rem .65rem .35rem; }
+.nav-caption { color:var(--acc-muted); font-size:.76rem; padding:.7rem .65rem; line-height:1.45; }
 
-    /* ---------- Product brand ---------- */
-    .acc-brand {
-        display: inline-flex;
-        align-items: center;
-        gap: .72rem;
-        text-decoration: none;
-        color: var(--acc-ink);
-    }
-    .acc-logo-mark {
-        width: 38px;
-        height: 38px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 11px;
-        color: #fff;
-        font-weight: 900;
-        font-size: 1.05rem;
-        letter-spacing: -.06em;
-        background: linear-gradient(145deg, #6366f1, #4f46e5 58%, #0891b2);
-        box-shadow: 0 8px 18px rgba(79,70,229,.22);
-    }
-    .acc-brand-name {
-        font-size: 1.14rem;
-        line-height: 1;
-        font-weight: 850;
-        letter-spacing: -.035em;
-    }
-    .acc-brand-sub {
-        display: block;
-        margin-top: .23rem;
-        font-size: .70rem;
-        font-weight: 650;
-        color: var(--acc-muted);
-        letter-spacing: .02em;
-    }
+section[data-testid="stSidebar"] .stButton > button {
+  width:100%; border:0 !important; background:transparent !important; color:var(--acc-muted) !important;
+  box-shadow:none !important; border-radius:11px !important; text-align:left !important;
+  padding:.62rem .7rem !important; min-height:2.45rem !important; font-weight:700 !important;
+  transition:background .16s ease, color .16s ease, transform .16s ease;
+}
+section[data-testid="stSidebar"] .stButton > button:hover {
+  background:#f1f2ff !important; color:var(--acc-primary) !important; transform:translateX(2px);
+}
+.nav-active {
+  background:linear-gradient(90deg,#eeeeff,#f7f7ff); color:var(--acc-primary); border-left:3px solid var(--acc-primary);
+  border-radius:10px; padding:.62rem .7rem; font-weight:800; margin:.08rem 0;
+}
 
-    .workspace-topbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: .65rem .8rem .9rem .8rem;
-        margin-bottom: .6rem;
-        border-bottom: 1px solid var(--acc-line);
-    }
-    .workspace-context {
-        text-align: right;
-        color: var(--acc-muted);
-        font-size: .78rem;
-        line-height: 1.45;
-    }
-    .workspace-context strong { color: var(--acc-ink); font-weight: 750; }
+/* Generic */
+button, input, textarea, select { font-family:inherit !important; }
+.stButton > button, .stFormSubmitButton > button, [data-testid="stDownloadButton"] button {
+  border-radius:11px !important; min-height:2.55rem !important; font-weight:750 !important;
+  border:1px solid var(--acc-line-strong) !important; transition:all .18s ease !important;
+}
+.stButton > button:hover, .stFormSubmitButton > button:hover, [data-testid="stDownloadButton"] button:hover {
+  transform:translateY(-1px); box-shadow:0 9px 24px rgba(15,23,42,.08) !important; border-color:#bfc4ff !important;
+}
+div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-baseweb="textarea"] > div { border-radius:11px !important; border-color:var(--acc-line-strong) !important; }
 
-    /* ---------- Buttons ---------- */
-    .stButton > button,
-    .stFormSubmitButton > button,
-    [data-testid="stDownloadButton"] button {
-        min-height: 2.7rem !important;
-        border-radius: 11px !important;
-        border: 1px solid var(--acc-line-strong) !important;
-        background: var(--acc-surface) !important;
-        color: var(--acc-ink) !important;
-        font-weight: 720 !important;
-        letter-spacing: -.01em;
-        box-shadow: 0 1px 2px rgba(16,24,40,.035);
-        transition: transform .16s ease, box-shadow .16s ease,
-                    border-color .16s ease, background .16s ease;
-    }
-    .stButton > button:hover,
-    .stFormSubmitButton > button:hover,
-    [data-testid="stDownloadButton"] button:hover {
-        transform: translateY(-1px);
-        border-color: rgba(91,92,240,.38) !important;
-        box-shadow: 0 7px 18px rgba(16,24,40,.09);
-    }
-    .stButton > button[kind="primary"],
-    .stFormSubmitButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #5b5cf0, #4f46e5) !important;
-        color: #fff !important;
-        border-color: transparent !important;
-        box-shadow: 0 8px 18px rgba(79,70,229,.20);
-    }
-    .stButton > button[kind="primary"]:hover,
-    .stFormSubmitButton > button[kind="primary"]:hover {
-        box-shadow: 0 12px 24px rgba(79,70,229,.28);
-    }
+/* App header */
+.topbar {
+  display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.1rem;
+  padding:.35rem 0 .8rem; border-bottom:1px solid var(--acc-line);
+}
+.topbar-title { font-size:.78rem; color:var(--acc-muted); font-weight:700; }
+.topbar-title strong { color:var(--acc-ink); }
 
-    /* ---------- Inputs ---------- */
-    div[data-baseweb="input"] > div,
-    div[data-baseweb="textarea"] > div,
-    div[data-baseweb="select"] > div,
-    div[data-baseweb="popover"] {
-        border-radius: 11px !important;
-    }
-    div[data-baseweb="input"] > div,
-    div[data-baseweb="textarea"] > div,
-    div[data-baseweb="select"] > div {
-        background: var(--acc-surface) !important;
-        border-color: var(--acc-line-strong) !important;
-        color: var(--acc-ink) !important;
-        transition: border-color .16s ease, box-shadow .16s ease;
-    }
-    div[data-baseweb="input"] > div:focus-within,
-    div[data-baseweb="textarea"] > div:focus-within,
-    div[data-baseweb="select"] > div:focus-within {
-        border-color: rgba(91,92,240,.58) !important;
-        box-shadow: 0 0 0 3px rgba(91,92,240,.11) !important;
-    }
-    input, textarea { color: var(--acc-ink) !important; }
+.page-eyebrow { color:var(--acc-primary); font-size:.69rem; font-weight:850; text-transform:uppercase; letter-spacing:.11em; margin-bottom:.45rem; }
+.page-title { color:var(--acc-ink); font-size:clamp(1.8rem,3vw,2.55rem); line-height:1.05; font-weight:900; letter-spacing:-.055em; margin:0; }
+.page-subtitle { color:var(--acc-muted); font-size:.92rem; line-height:1.55; margin-top:.45rem; }
 
-    /* ---------- Sidebar ---------- */
-    section[data-testid="stSidebar"] {
-        background: var(--acc-sidebar) !important;
-        border-right: 1px solid var(--acc-line) !important;
-        box-shadow: 5px 0 24px rgba(16,24,40,.025);
-    }
-    section[data-testid="stSidebar"] > div {
-        padding-top: .85rem !important;
-        padding-left: .85rem !important;
-        padding-right: .85rem !important;
-    }
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
-        color: var(--acc-muted);
-    }
-    .sidebar-brand {
-        padding: .2rem .25rem .9rem;
-        margin-bottom: .4rem;
-        border-bottom: 1px solid var(--acc-line);
-    }
-    .sidebar-section-label {
-        margin: 1.1rem .3rem .45rem;
-        color: var(--acc-muted);
-        font-size: .68rem;
-        font-weight: 800;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-    }
+.hero {
+  position:relative; overflow:hidden; padding:2rem 2.1rem; border:1px solid #e0e1ff; border-radius:24px;
+  background:radial-gradient(circle at 90% 10%,rgba(22,166,182,.15),transparent 25%),
+             radial-gradient(circle at 8% 95%,rgba(91,92,226,.12),transparent 30%),
+             linear-gradient(135deg,#ffffff,#f4f4ff);
+  box-shadow:var(--acc-shadow); margin-bottom:1rem;
+}
+.hero::after { content:""; position:absolute; width:240px;height:240px;right:-130px;top:-120px;border:1px solid #dedfff;border-radius:50%; }
+.hero-content { position:relative; z-index:1; }
 
-    /* ---------- Cards ---------- */
-    .section-card {
-        position: relative;
-        height: 100%;
-        padding: 1.15rem 1.2rem;
-        border: 1px solid var(--acc-line);
-        border-radius: var(--acc-radius);
-        margin: .45rem 0 1rem;
-        background: var(--acc-surface);
-        box-shadow: var(--acc-shadow-sm);
-        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-    }
-    .section-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(91,92,240,.24);
-        box-shadow: var(--acc-shadow-md);
-    }
-    .fs-title { font-size: 1.02rem; font-weight: 800; letter-spacing: -.018em; color: var(--acc-ink); }
-    .fs-subtitle { margin-top: .32rem; font-size: .86rem; line-height: 1.55; color: var(--acc-muted); }
+.card {
+  background:var(--acc-surface); border:1px solid var(--acc-line); border-radius:var(--acc-radius); padding:1.15rem 1.2rem;
+  box-shadow:var(--acc-shadow); transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease; height:100%;
+}
+.card:hover { transform:translateY(-2px); box-shadow:var(--acc-shadow-hover); border-color:#d8d9ff; }
+.card-title { color:var(--acc-ink); font-size:.96rem; font-weight:850; letter-spacing:-.02em; }
+.card-caption { color:var(--acc-muted); font-size:.75rem; margin-top:.22rem; }
 
-    .app-hero {
-        position: relative;
-        overflow: hidden;
-        padding: 1.5rem 1.65rem;
-        border: 1px solid rgba(91,92,240,.18);
-        border-radius: var(--acc-radius-lg);
-        background: linear-gradient(135deg, rgba(91,92,240,.11), rgba(8,145,178,.055));
-        box-shadow: var(--acc-shadow-sm);
-        margin-bottom: 1.2rem;
-    }
-    .app-hero h1 { margin: 0 0 .3rem; font-size: clamp(1.7rem, 3vw, 2.25rem); font-weight: 850; }
-    .app-hero p { margin: 0; color: var(--acc-muted); line-height: 1.6; }
+.kpi-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.75rem; margin:1rem 0; }
+.kpi { background:var(--acc-surface); border:1px solid var(--acc-line); border-radius:16px; padding:1rem; box-shadow:var(--acc-shadow); transition:all .2s ease; }
+.kpi:hover { transform:translateY(-2px); box-shadow:var(--acc-shadow-hover); }
+.kpi-label { color:var(--acc-muted); font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.075em; }
+.kpi-value { color:var(--acc-ink); font-size:1.42rem; font-weight:900; letter-spacing:-.045em; margin-top:.35rem; }
+.kpi-meta { color:var(--acc-muted); font-size:.7rem; margin-top:.25rem; }
 
-    /* ---------- File uploader ---------- */
-    [data-testid="stFileUploaderDropzone"] {
-        min-height: 155px;
-        border: 1.5px dashed rgba(91,92,240,.34) !important;
-        border-radius: 15px !important;
-        background: var(--acc-surface-soft) !important;
-        transition: border-color .18s ease, background .18s ease, transform .18s ease;
-    }
-    [data-testid="stFileUploaderDropzone"]:hover {
-        border-color: rgba(91,92,240,.65) !important;
-        background: var(--acc-primary-soft) !important;
-        transform: translateY(-1px);
-    }
+.status-pill { display:inline-flex; align-items:center; gap:.35rem; border-radius:999px; padding:.34rem .62rem; font-size:.68rem; font-weight:850; }
+.status-good { background:#e8f8f1; color:#087b5e; }
+.status-warn { background:#fff3df; color:#9a5c0b; }
+.status-bad { background:#ffe9ed; color:#b53648; }
 
-    /* ---------- Metrics ---------- */
-    [data-testid="stMetric"] {
-        border: 1px solid var(--acc-line);
-        border-radius: 14px;
-        padding: .82rem .95rem;
-        background: var(--acc-surface);
-        box-shadow: var(--acc-shadow-sm);
-    }
-    [data-testid="stMetricLabel"] { color: var(--acc-muted) !important; font-size: .72rem !important; font-weight: 750 !important; text-transform: uppercase; letter-spacing: .045em; }
-    [data-testid="stMetricValue"] { color: var(--acc-ink) !important; font-weight: 850 !important; letter-spacing: -.035em; }
+.insight { padding:.75rem .8rem; border:1px solid var(--acc-line); border-radius:12px; background:var(--acc-surface-2); margin:.45rem 0; }
+.insight-title { font-size:.8rem; font-weight:850; color:var(--acc-ink); }
+.insight-copy { font-size:.72rem; color:var(--acc-muted); line-height:1.45; margin-top:.15rem; }
+.insight-good { border-left:3px solid var(--acc-success); }
+.insight-warn { border-left:3px solid var(--acc-warning); }
+.insight-danger { border-left:3px solid var(--acc-danger); }
 
-    /* ---------- Tables ---------- */
-    [data-testid="stDataFrame"] {
-        border: 1px solid var(--acc-line) !important;
-        border-radius: 14px !important;
-        overflow: hidden;
-        background: var(--acc-surface) !important;
-        box-shadow: var(--acc-shadow-sm);
-    }
-    [data-testid="stDataFrame"] > div { border-radius: 14px !important; }
+.quick-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.55rem; }
+.quick { border:1px solid var(--acc-line); border-radius:12px; padding:.75rem; background:var(--acc-surface-2); font-weight:750; color:var(--acc-ink); transition:all .16s ease; }
+.quick:hover { border-color:#cfd0ff; background:#f8f8ff; transform:translateY(-1px); }
 
-    /* ---------- Tabs / expanders / alerts ---------- */
-    button[data-baseweb="tab"] {
-        color: var(--acc-muted) !important;
-        font-weight: 720 !important;
-        border-radius: 9px 9px 0 0 !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] { color: var(--acc-primary) !important; }
-    [data-testid="stExpander"] {
-        border: 1px solid var(--acc-line) !important;
-        border-radius: 13px !important;
-        overflow: hidden;
-        background: var(--acc-surface) !important;
-        box-shadow: 0 3px 14px rgba(16,24,40,.035);
-    }
-    div[data-testid="stAlert"] {
-        border-radius: 12px !important;
-        border-width: 1px !important;
-        box-shadow: none !important;
-    }
+.section-head { display:flex; align-items:end; justify-content:space-between; gap:1rem; margin:1.45rem 0 .7rem; }
+.section-title { font-size:1.02rem; font-weight:850; color:var(--acc-ink); letter-spacing:-.025em; }
+.section-caption { color:var(--acc-muted); font-size:.75rem; }
 
-    /* ---------- Statement tables ---------- */
-    .statement-card {
-        border: 1px solid var(--acc-line);
-        border-radius: 16px;
-        overflow: hidden;
-        margin: .75rem 0 1.4rem;
-        background: var(--acc-surface);
-        box-shadow: var(--acc-shadow-sm);
-    }
-    .statement-head {
-        padding: 1rem 1.15rem .85rem;
-        border-bottom: 1px solid var(--acc-line);
-        background: linear-gradient(135deg, rgba(91,92,240,.075), rgba(8,145,178,.025));
-    }
-    .statement-title { font-size: 1.15rem; font-weight: 850; color: var(--acc-ink); }
-    .statement-subtitle { margin-top: .2rem; font-size: .82rem; color: var(--acc-muted); }
-    .statement-scroll { overflow-x: auto; }
-    .statement-table { width: 100%; border-collapse: collapse; min-width: 720px; color: var(--acc-ink); }
-    .statement-table th { padding: .75rem .85rem; border-bottom: 1px solid var(--acc-line-strong); font-size: .70rem; text-transform: uppercase; letter-spacing: .055em; color: var(--acc-muted); text-align: left; white-space: nowrap; }
-    .statement-table td { padding: .65rem .85rem; border-bottom: 1px solid var(--acc-line); font-size: .88rem; vertical-align: middle; }
-    .statement-table tbody tr:hover { background: var(--acc-primary-soft); }
-    .statement-table .note { width: 85px; text-align: center; }
-    .statement-table .amount { width: 175px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .statement-table .section td { font-weight: 850; background: var(--acc-primary-soft); border-top: 1px solid rgba(91,92,240,.18); }
-    .statement-table .subsection td { font-weight: 760; }
-    .statement-table .indent .particular { padding-left: 1.7rem; }
-    .statement-table .total td { font-weight: 800; border-top: 1px solid var(--acc-line-strong); }
-    .statement-table .subtotal td { font-weight: 800; border-top: 1px dashed var(--acc-line-strong); }
-    .statement-table .grand-total td { font-weight: 900; border-top: 2px solid rgba(91,92,240,.34); border-bottom: 2px double rgba(91,92,240,.34); background: var(--acc-primary-soft); }
+/* Custom data tables */
+.table-shell { border:1px solid var(--acc-line); border-radius:16px; overflow:auto; background:var(--acc-surface); box-shadow:var(--acc-shadow); }
+.acc-table { width:100%; min-width:880px; border-collapse:collapse; }
+.acc-table th { position:sticky; top:0; z-index:1; background:#f8f9fc; color:#6b7280; font-size:.67rem; text-transform:uppercase; letter-spacing:.07em; padding:.75rem .8rem; text-align:left; border-bottom:1px solid var(--acc-line); white-space:nowrap; }
+.acc-table td { color:var(--acc-ink); font-size:.76rem; padding:.68rem .8rem; border-bottom:1px solid #f0f1f4; vertical-align:middle; }
+.acc-table tr:hover td { background:#fafaff; }
+.acc-table .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.acc-table .center { text-align:center; }
+.tag { display:inline-flex; padding:.25rem .48rem; border-radius:999px; background:#f1f2ff; color:#4d4fc6; font-size:.64rem; font-weight:800; }
+.tag-good { background:#e8f8f1; color:#087b5e; }
+.tag-warn { background:#fff3df; color:#9a5c0b; }
+.tag-danger { background:#ffe9ed; color:#b53648; }
+.conf-track { width:80px; height:5px; background:#eceef3; border-radius:99px; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:.35rem; }
+.conf-fill { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--acc-primary),var(--acc-cyan)); }
 
-    /* ---------- Export links ---------- */
-    .acc-download-link {
-        display:block;
-        width:100%;
-        box-sizing:border-box;
-        padding:.72rem 1rem;
-        border-radius:11px;
-        text-align:center;
-        text-decoration:none !important;
-        font-weight:760;
-        color:#fff !important;
-        background:linear-gradient(135deg,#5b5cf0,#4f46e5);
-        border:1px solid transparent;
-        box-shadow:0 7px 18px rgba(79,70,229,.18);
-        transition:transform .16s ease,box-shadow .16s ease;
-    }
-    .acc-download-link:hover {
-        transform:translateY(-1px);
-        box-shadow:0 11px 24px rgba(79,70,229,.26);
-    }
-    [data-theme="dark"] .acc-download-link,
-    body[data-theme="dark"] .acc-download-link {
-        color:#fff !important;
-    }
+/* Statement */
+.statement-card { border:1px solid var(--acc-line); border-radius:18px; overflow:auto; background:var(--acc-surface); box-shadow:var(--acc-shadow); }
+.statement-head { padding:1rem 1.1rem; border-bottom:1px solid var(--acc-line); background:linear-gradient(135deg,#f8f8ff,#f7fbfc); }
+.statement-title { font-weight:900; color:var(--acc-ink); font-size:1rem; }
+.statement-subtitle { color:var(--acc-muted); font-size:.72rem; margin-top:.2rem; }
+.statement-table { width:100%; min-width:760px; border-collapse:collapse; }
+.statement-table th { padding:.7rem .85rem; color:#707789; font-size:.65rem; text-transform:uppercase; letter-spacing:.07em; border-bottom:1px solid var(--acc-line); text-align:left; }
+.statement-table td { padding:.66rem .85rem; color:var(--acc-ink); font-size:.78rem; border-bottom:1px solid #f0f1f4; }
+.statement-table .amount { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.statement-table .note { width:70px; text-align:center; color:var(--acc-muted); }
+.statement-table .section td { font-weight:900; background:#f5f5ff; border-top:1px solid #dedfff; }
+.statement-table .subsection td { font-weight:800; }
+.statement-table .indent td:first-child { padding-left:1.7rem; }
+.statement-table .total td { font-weight:850; border-top:1px solid var(--acc-line-strong); }
+.statement-table .grand-total td { font-weight:950; border-top:2px solid #bfc0ff; background:#f7f7ff; }
 
-    /* ---------- Validation ---------- */
-    .validation-pass { padding: .72rem .85rem; border-radius: 11px; border: 1px solid rgba(34,197,94,.22); background: rgba(34,197,94,.055); margin: .35rem 0; }
-    .validation-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .55rem; }
-    .validation-item { padding: .72rem .82rem; border: 1px solid var(--acc-line); border-radius: 11px; background: var(--acc-surface); font-size: .86rem; }
-    .validation-item.pass { border-color: rgba(34,197,94,.25); background: rgba(34,197,94,.055); }
-    .validation-item.review { border-color: rgba(245,158,11,.28); background: rgba(245,158,11,.055); }
+/* Validation */
+.validation-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.65rem; }
+.check { border:1px solid var(--acc-line); border-radius:14px; padding:.85rem; background:var(--acc-surface); display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.check-name { font-weight:800; color:var(--acc-ink); font-size:.78rem; }
+.check-detail { color:var(--acc-muted); font-size:.68rem; margin-top:.16rem; }
 
-    /* ---------- Landing page ---------- */
-    .landing-shell { max-width: 1180px; margin: .8rem auto 0; }
-    .landing-brandbar { display:flex; align-items:center; justify-content:space-between; gap:1rem; margin: .35rem 0 1.2rem; }
-    .landing-pill { display:inline-flex; align-items:center; gap:.4rem; padding:.38rem .65rem; border:1px solid var(--acc-line); border-radius:999px; background:var(--acc-surface); color:var(--acc-muted); font-size:.72rem; font-weight:750; }
-    .landing-hero { position:relative; overflow:hidden; padding:3.3rem 3.1rem; border:1px solid rgba(91,92,240,.17); border-radius:28px; background: radial-gradient(circle at 88% 10%, rgba(34,211,238,.13), transparent 28%), radial-gradient(circle at 8% 92%, rgba(99,102,241,.13), transparent 34%), var(--acc-surface); box-shadow: var(--acc-shadow-md); }
-    .landing-hero::after { content:""; position:absolute; width:360px; height:360px; right:-190px; top:-190px; border-radius:50%; border:1px solid rgba(91,92,240,.14); box-shadow:0 0 0 24px rgba(91,92,240,.025),0 0 0 48px rgba(91,92,240,.015); pointer-events:none; }
-    .landing-eyebrow { display:inline-flex; align-items:center; gap:.45rem; padding:.42rem .72rem; border:1px solid rgba(91,92,240,.18); border-radius:999px; background:var(--acc-primary-soft); color:var(--acc-primary); font-size:.72rem; font-weight:820; letter-spacing:.045em; }
-    .landing-title { max-width:860px; margin-top:1rem; font-size:clamp(2.55rem,5.2vw,4.55rem); line-height:1.02; font-weight:900; letter-spacing:-.06em; color:var(--acc-ink); }
-    .landing-title span { background:linear-gradient(100deg,#6366f1 5%,#4f46e5 52%,#0891b2 95%); -webkit-background-clip:text; background-clip:text; color:transparent; }
-    .landing-copy { max-width:720px; margin-top:1.1rem; font-size:1.05rem; line-height:1.72; color:var(--acc-muted); }
-    .landing-visual { min-height:340px; display:flex; align-items:center; justify-content:center; animation:acc-float 5s ease-in-out infinite; }
-    .landing-feature { height:100%; min-height:108px; padding:1.05rem 1.1rem; border:1px solid var(--acc-line); border-radius:15px; background:var(--acc-surface); box-shadow:var(--acc-shadow-sm); transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
-    .landing-feature:hover { transform:translateY(-3px); border-color:rgba(91,92,240,.25); box-shadow:var(--acc-shadow-md); }
-    .landing-feature-title { font-weight:820; font-size:.96rem; margin-bottom:.35rem; color:var(--acc-ink); }
-    .landing-feature-text { font-size:.83rem; line-height:1.55; color:var(--acc-muted); }
-    .landing-note { text-align:center; margin-top:1.1rem; font-size:.76rem; color:var(--acc-muted); }
+/* Reports */
+.report-card { min-height:150px; display:flex; flex-direction:column; justify-content:space-between; }
+.report-icon { width:36px;height:36px;border-radius:11px;background:#f0f0ff;color:var(--acc-primary);display:grid;place-items:center;font-weight:900; }
 
-    /* ---------- V3 Executive Dashboard ---------- */
-    .dashboard-shell { margin: .35rem 0 1.4rem; }
-    .dashboard-head { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin:.2rem 0 1.1rem; }
-    .dashboard-kicker { font-size:.73rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--acc-primary); margin-bottom:.35rem; }
-    .dashboard-title { font-size:clamp(1.8rem,3vw,2.55rem); line-height:1.05; font-weight:900; letter-spacing:-.05em; color:var(--acc-ink); }
-    .dashboard-subtitle { margin-top:.45rem; color:var(--acc-muted); font-size:.91rem; }
-    .dashboard-period { padding:.5rem .75rem; border:1px solid var(--acc-line); border-radius:10px; background:var(--acc-surface); color:var(--acc-muted); font-size:.76rem; font-weight:750; white-space:nowrap; }
-    .metric-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.75rem; margin-bottom:.9rem; }
-    .metric-card { min-height:126px; padding:1rem 1rem .9rem; border:1px solid var(--acc-line); border-radius:16px; background:var(--acc-surface); box-shadow:var(--acc-shadow-sm); position:relative; overflow:hidden; }
-    .metric-card::after { content:""; position:absolute; right:-30px; bottom:-38px; width:100px; height:100px; border-radius:50%; background:var(--acc-primary-soft); pointer-events:none; }
-    .metric-label { font-size:.72rem; font-weight:720; color:var(--acc-muted); }
-    .metric-value { margin-top:.45rem; font-size:1.48rem; font-weight:900; letter-spacing:-.045em; color:var(--acc-ink); }
-    .metric-meta { margin-top:.5rem; font-size:.72rem; color:var(--acc-muted); }
-    .metric-positive { color:var(--acc-success); font-weight:800; }
-    .metric-warning { color:var(--acc-warning); font-weight:800; }
-    .metric-icon { position:absolute; top:.85rem; right:.85rem; width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; background:var(--acc-primary-soft); color:var(--acc-primary); font-weight:900; }
-    .dashboard-grid { display:grid; grid-template-columns:1.45fr 1fr .82fr; gap:.85rem; }
-    .dash-card { border:1px solid var(--acc-line); border-radius:16px; background:var(--acc-surface); box-shadow:var(--acc-shadow-sm); padding:1rem; min-height:260px; }
-    .dash-card-head { display:flex; align-items:center; justify-content:space-between; gap:.7rem; margin-bottom:.9rem; }
-    .dash-card-title { font-size:.91rem; font-weight:850; color:var(--acc-ink); }
-    .dash-card-caption { font-size:.7rem; color:var(--acc-muted); }
-    .overview-chart { height:170px; display:flex; align-items:flex-end; gap:9px; padding:.6rem .25rem .15rem; border-bottom:1px solid var(--acc-line); }
-    .chart-column { flex:1; height:100%; display:flex; align-items:flex-end; justify-content:center; gap:3px; }
-    .chart-bar { width:31%; min-height:5px; border-radius:6px 6px 2px 2px; background:linear-gradient(180deg,#6366f1,#4f46e5); }
-    .chart-bar.expense { background:linear-gradient(180deg,#fb7185,#ef4444); }
-    .chart-bar.profit { background:linear-gradient(180deg,#34d399,#16a34a); }
-    .chart-legend { display:flex; gap:1rem; margin-top:.65rem; font-size:.68rem; color:var(--acc-muted); }
-    .legend-dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:4px; background:#4f46e5; }
-    .legend-dot.expense { background:#ef4444; }
-    .legend-dot.profit { background:#16a34a; }
-    .insight-list { display:flex; flex-direction:column; gap:.55rem; }
-    .insight-item { display:flex; align-items:center; gap:.65rem; padding:.68rem .7rem; border:1px solid var(--acc-line); border-radius:11px; background:var(--acc-surface-soft); }
-    .insight-icon { width:30px; height:30px; flex:0 0 30px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:900; background:var(--acc-primary-soft); color:var(--acc-primary); }
-    .insight-icon.good { background:rgba(34,197,94,.10); color:var(--acc-success); }
-    .insight-icon.warn { background:rgba(245,158,11,.11); color:var(--acc-warning); }
-    .insight-title { font-size:.75rem; font-weight:800; color:var(--acc-ink); }
-    .insight-text { font-size:.68rem; color:var(--acc-muted); margin-top:.12rem; line-height:1.35; }
-    .quick-actions { display:flex; flex-direction:column; gap:.55rem; }
-    .quick-action { display:flex; align-items:center; gap:.65rem; padding:.72rem .75rem; border:1px solid var(--acc-line); border-radius:11px; background:var(--acc-surface); color:var(--acc-ink) !important; text-decoration:none !important; font-size:.75rem; font-weight:760; transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease; }
-    .quick-action:hover { transform:translateY(-1px); border-color:rgba(91,92,240,.3); box-shadow:var(--acc-shadow-sm); }
-    .quick-action-icon { width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center; background:var(--acc-primary-soft); color:var(--acc-primary); }
-    .ai-copilot { margin-top:.85rem; padding:1rem; border-radius:15px; border:1px solid rgba(91,92,240,.18); background:linear-gradient(145deg,var(--acc-primary-soft),rgba(8,145,178,.06)); }
-    .ai-copilot-title { font-weight:850; color:var(--acc-ink); font-size:.82rem; }
-    .ai-copilot-copy { color:var(--acc-muted); font-size:.7rem; line-height:1.45; margin-top:.25rem; }
-    .status-pill { display:inline-flex; align-items:center; gap:.35rem; padding:.3rem .55rem; border-radius:999px; font-size:.67rem; font-weight:800; }
-    .status-pill.good { color:#15803d; background:rgba(34,197,94,.11); }
-    .status-pill.warn { color:#b45309; background:rgba(245,158,11,.12); }
-    [data-theme="dark"] .status-pill.good, body[data-theme="dark"] .status-pill.good { color:#86efac; }
-    [data-theme="dark"] .status-pill.warn, body[data-theme="dark"] .status-pill.warn { color:#fcd34d; }
-    .section-anchor { position:relative; top:-10px; height:0; }
-    .detail-bar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.8rem 1rem; border:1px solid var(--acc-line); border-radius:14px; background:var(--acc-surface); margin:1.1rem 0; }
-    .detail-bar-title { font-weight:850; color:var(--acc-ink); font-size:.9rem; }
-    .detail-bar-copy { color:var(--acc-muted); font-size:.72rem; margin-top:.15rem; }
-    .sidebar-nav { display:flex; flex-direction:column; gap:.2rem; margin:.55rem 0 1rem; }
-    .sidebar-nav a { padding:.52rem .62rem; border-radius:9px; color:var(--acc-muted) !important; text-decoration:none !important; font-size:.76rem; font-weight:700; }
-    .sidebar-nav a:hover { background:var(--acc-primary-soft); color:var(--acc-primary) !important; }
-    .sidebar-ai { padding:.9rem; border:1px solid rgba(91,92,240,.18); border-radius:14px; background:linear-gradient(145deg,var(--acc-primary-soft),rgba(8,145,178,.06)); }
-    @media (max-width:1100px) { .metric-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .dashboard-grid { grid-template-columns:1fr 1fr; } .dashboard-grid .dash-card:last-child { grid-column:1/-1; } }
-    @media (max-width:700px) { .metric-grid { grid-template-columns:1fr 1fr; } .dashboard-grid { grid-template-columns:1fr; } .dashboard-grid .dash-card:last-child { grid-column:auto; } .dashboard-head { align-items:flex-start; flex-direction:column; } .metric-value { font-size:1.25rem; } }
-    @media (max-width:480px) { .metric-grid { grid-template-columns:1fr; } .metric-card { min-height:105px; } }
+/* Landing */
+.landing { max-width:1180px; margin:2.5rem auto; }
+.landing-title { font-size:clamp(2.7rem,6vw,5rem); font-weight:950; line-height:.98; letter-spacing:-.065em; color:var(--acc-ink); }
+.landing-title span { background:linear-gradient(100deg,#5354df,#13a6b5); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.landing-copy { max-width:700px; color:var(--acc-muted); font-size:1.03rem; line-height:1.7; margin-top:1rem; }
 
-    /* ---------- Feedback ---------- */
-    .feedback-card { padding:1.1rem 1.15rem; border:1px solid var(--acc-line); border-radius:15px; background:var(--acc-surface); box-shadow:var(--acc-shadow-sm); }
+/* Hide native app chrome */
+[data-testid="stFileUploaderDropzone"] { border-radius:14px !important; border:1.5px dashed #c8caf5 !important; background:#fafaff !important; }
+[data-testid="stDataFrame"] { border-radius:14px !important; }
 
-    hr { margin:1.35rem 0 !important; border:0 !important; border-top:1px solid var(--acc-line) !important; }
+@media (max-width:1050px) {
+  .kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (max-width:760px) {
+  .block-container { padding:.8rem .75rem 3rem !important; }
+  .kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .validation-grid { grid-template-columns:1fr; }
+  .hero { padding:1.35rem; }
+  .page-title { font-size:1.85rem; }
+}
+@media (max-width:480px) {
+  .kpi-grid { grid-template-columns:1fr; }
+  .quick-grid { grid-template-columns:1fr; }
+  .kpi-value { font-size:1.3rem; }
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --acc-ink:#f3f5fa; --acc-muted:#aab2c1; --acc-line:#2b3140; --acc-line-strong:#3a4252;
+    --acc-bg:#0c1018; --acc-surface:#121824; --acc-surface-2:#171e2b;
+    --acc-shadow:0 10px 35px rgba(0,0,0,.25); --acc-shadow-hover:0 18px 48px rgba(0,0,0,.35);
+  }
+  section[data-testid="stSidebar"] { background:#0f141e !important; }
+  .nav-active { background:#1b2033; }
+  section[data-testid="stSidebar"] .stButton > button:hover { background:#1a2030 !important; }
+  .hero { background:radial-gradient(circle at 90% 10%,rgba(22,166,182,.10),transparent 25%),linear-gradient(135deg,#121827,#151b2a); border-color:#2f3650; }
+  .kpi,.card,.table-shell,.statement-card,.check,.insight,.quick { background:var(--acc-surface); }
+  .acc-table th { background:#171d29; }
+  .acc-table td,.statement-table td { border-color:#242b37; }
+  .acc-table tr:hover td { background:#171d29; }
+  .statement-head { background:linear-gradient(135deg,#171b2a,#121b21); }
+  .statement-table .section td { background:#1a1d33; }
+  .statement-table .grand-total td { background:#191c32; }
+  [data-testid="stFileUploaderDropzone"] { background:#121824 !important; border-color:#414872 !important; }
+}
+</style>
+''', unsafe_allow_html=True)
 
-    @keyframes acc-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-5px); } }
-    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation:none !important; transition:none !important; } }
+# -----------------------------
+# Small render helpers
+# -----------------------------
 
-    @media (max-width: 900px) {
-        .block-container { padding-left: .95rem !important; padding-right: .95rem !important; }
-        .landing-hero { padding:2.35rem 1.45rem; border-radius:22px; }
-        .landing-title { font-size:clamp(2.35rem,10vw,3.6rem); }
-        .workspace-topbar { align-items:flex-start; }
-        .workspace-context { display:none; }
-    }
-    @media (max-width: 640px) {
-        .block-container { padding-top:.65rem !important; }
-        .landing-shell { margin-top:.35rem; }
-        .landing-hero { padding:1.8rem 1.05rem; }
-        .landing-copy { font-size:.96rem; }
-        .landing-visual { min-height:250px; }
-        .statement-table { min-width:650px; }
-        .validation-grid { grid-template-columns:1fr; }
-        .acc-brand-sub { display:none; }
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
-# =========================================================
-# SEO LANDING PAGE — TRIAL BALANCE TO FINANCIAL STATEMENTS
-# =========================================================
-
-if st.query_params.get("seo") == "trial-balance-to-financial-statements":
-    st.markdown(
-        """
-        <div class="landing-shell">
-            <div class="landing-hero">
-                <div class="landing-eyebrow">📑 TRIAL BALANCE TO FINANCIAL STATEMENTS</div>
-                <div class="landing-title">Trial Balance to Financial Statements</div>
-                <div class="landing-subtitle">
-                    Turn a structured Trial Balance into Schedule III-style Profit &amp; Loss
-                    and Balance Sheet statements with AI-assisted account classification,
-                    review flags, and validation checks.
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    seo_col1, seo_col2 = st.columns([1.15, 0.85], gap="large")
-    with seo_col1:
-        st.markdown("## How Accountra converts a Trial Balance into financial statements")
-        st.write(
-            """Accountra starts with your Excel or CSV Trial Balance, checks that the
-            debit and credit totals are balanced, classifies accounts into financial
-            statement heads, lets you review ambiguous classifications, and prepares
-            Profit & Loss and Balance Sheet statements."""
-        )
-
-        st.markdown("### The workflow")
-        st.markdown(
-            """
-            **1. Upload your Trial Balance** — Start with an Excel or CSV file.\n\n
-            **2. Validate the Trial Balance** — Check the debit and credit totals before preparation.\n\n
-            **3. Classify accounts** — Use AI-assisted classification with confidence and review flags.\n\n
-            **4. Review ambiguous accounts** — Correct classifications when additional context is needed.\n\n
-            **5. Generate financial statements** — Prepare Profit &amp; Loss and Balance Sheet statements in a Schedule III-style presentation.\n\n
-            **6. Validate the output** — Review balances, missing information, and unusual classifications before using the results.
-            """
-        )
-
-    with seo_col2:
-        st.markdown("### What you can generate")
-        st.markdown(
-            """
-            - Profit &amp; Loss statement
-            - Balance Sheet
-            - Schedule III-style presentation
-            - Comparative period information when supplied
-            - Account-level notes and review insights
-            - Excel working-paper export
-            - PDF presentation export
-            """
-        )
-        st.info(
-            """Accountra is an accounting workflow assistant. Always review generated
-            classifications and statements before statutory or professional use."""
-        )
-
-    st.divider()
-    st.markdown("## Frequently asked questions")
-
-    with st.expander("Can Accountra generate financial statements from a Trial Balance?"):
-        st.write(
-            """Yes. Accountra is designed to take a Trial Balance, classify accounts,
-            and prepare Profit & Loss and Balance Sheet statements in a Schedule III-style layout."""
-        )
-
-    with st.expander("What Trial Balance files can I upload?"):
-        st.write(
-            """The workflow supports Excel and CSV Trial Balance files. The uploaded
-            data is then validated and prepared for account classification."""
-        )
-
-    with st.expander("Does Accountra automatically classify every account?"):
-        st.write(
-            """Accountra provides AI-assisted account classification and identifies
-            items that may need review. You should review ambiguous or low-confidence items."""
-        )
-
-    with st.expander("Can I review the generated financial statements?"):
-        st.write(
-            """Yes. The workflow includes review and validation steps before the final
-            financial statement exports are generated."""
-        )
-
-    st.markdown("## Ready to turn your Trial Balance into financial statements?")
-    if st.button("🚀 Start with a Trial Balance", type="primary", use_container_width=True, key="seo_tb_start"):
-        st.query_params.clear()
-        st.session_state["app_page"] = "workspace"
-        st.rerun()
-
-    st.markdown(
-        '<div class="landing-note"><a href="/">← Back to Accountra</a></div>',
-        unsafe_allow_html=True,
-    )
-    st.stop()
+def html_escape(value):
+    import html
+    return html.escape(str(value if value is not None else ""))
 
 
-# =========================================================
-# LANDING PAGE
-# =========================================================
+def money(value):
+    return indian_currency(float(value or 0))
 
-if st.session_state.get("app_page", "landing") != "workspace":
-    st.markdown(
-        """
-        <div class="landing-brandbar">
-            <div class="acc-brand">
-                <span class="acc-logo-mark">A</span>
-                <span>
-                    <span class="acc-brand-name">Accountra</span>
-                    <span class="acc-brand-sub">AI-powered accounting workspace</span>
-                </span>
-            </div>
-            <div class="landing-pill">● Secure workflow · Review before filing</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
-    st.markdown(
-        """
-        <div class="landing-shell">
-            <div class="landing-hero">
-                <div class="landing-eyebrow">📊 AI-POWERED ACCOUNTING SOFTWARE</div>
-                <div class="landing-title" style="display:flex;align-items:center;justify-content:center;gap:.55rem;flex-wrap:wrap;">
-                    <span>Turn Trial Balances Into Financial Statements</span></div>
-                <div class="landing-copy">
-                    AI-assisted accounting software that classifies Trial Balance accounts,
-                    generates Profit &amp; Loss and Balance Sheet statements, and helps
-                    you validate the results in one workflow.
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def set_page(page):
+    st.session_state["app_page"] = page
 
-    visual_col, text_col = st.columns([1.05, 1], gap="large")
 
-    with visual_col:
-        st.markdown(
-            """
-            <div class="landing-visual">
-                <svg viewBox="0 0 620 430" width="100%" role="img"
-                     aria-label="Accounting dashboard illustration">
-                    <defs>
-                        <linearGradient id="card" x1="0" x2="1">
-                            <stop offset="0%" stop-color="#eef2ff"/>
-                            <stop offset="100%" stop-color="#ecfeff"/>
-                        </linearGradient>
-                        <linearGradient id="screen" x1="0" x2="1">
-                            <stop offset="0%" stop-color="#4f46e5"/>
-                            <stop offset="100%" stop-color="#0891b2"/>
-                        </linearGradient>
-                    </defs>
-                    <rect x="65" y="55" width="490" height="315" rx="28"
-                          fill="url(#card)" stroke="#cbd5e1" stroke-width="2"/>
-                    <rect x="105" y="92" width="410" height="235" rx="18"
-                          fill="#ffffff" stroke="#dbeafe" stroke-width="2"/>
-                    <rect x="132" y="120" width="190" height="18" rx="9"
-                          fill="url(#screen)"/>
-                    <rect x="132" y="154" width="115" height="10" rx="5"
-                          fill="#cbd5e1"/>
-                    <rect x="132" y="180" width="160" height="86" rx="12"
-                          fill="#f8fafc" stroke="#e2e8f0"/>
-                    <line x1="148" y1="247" x2="148" y2="203"
-                          stroke="#4f46e5" stroke-width="12" stroke-linecap="round"/>
-                    <line x1="180" y1="247" x2="180" y2="220"
-                          stroke="#0891b2" stroke-width="12" stroke-linecap="round"/>
-                    <line x1="212" y1="247" x2="212" y2="194"
-                          stroke="#6366f1" stroke-width="12" stroke-linecap="round"/>
-                    <line x1="244" y1="247" x2="244" y2="211"
-                          stroke="#06b6d4" stroke-width="12" stroke-linecap="round"/>
-                    <line x1="276" y1="247" x2="276" y2="187"
-                          stroke="#4f46e5" stroke-width="12" stroke-linecap="round"/>
-                    <rect x="315" y="180" width="170" height="86" rx="12"
-                          fill="#f8fafc" stroke="#e2e8f0"/>
-                    <text x="335" y="205" font-size="12" font-weight="700"
-                          fill="#334155">FINANCIAL STATEMENTS</text>
-                    <text x="335" y="229" font-size="11" fill="#64748b">Profit &amp; Loss</text>
-                    <text x="335" y="248" font-size="11" fill="#64748b">Balance Sheet</text>
-                    <rect x="165" y="285" width="260" height="16" rx="8"
-                          fill="#e2e8f0"/>
-                    <rect x="165" y="285" width="178" height="16" rx="8"
-                          fill="url(#screen)"/>
-                    <circle cx="500" cy="90" r="33" fill="#ffffff"
-                            stroke="#cbd5e1" stroke-width="2"/>
-                    <path d="M485 91 L496 102 L516 78"
-                          fill="none" stroke="#16a34a" stroke-width="8"
-                          stroke-linecap="round" stroke-linejoin="round"/>
-                    <rect x="25" y="245" width="125" height="90" rx="18"
-                          fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                    <text x="45" y="272" font-size="12" font-weight="700"
-                          fill="#334155">TRIAL BALANCE</text>
-                    <text x="45" y="297" font-size="11" fill="#64748b">Debit</text>
-                    <text x="105" y="297" font-size="11" fill="#4f46e5">₹</text>
-                    <text x="45" y="317" font-size="11" fill="#64748b">Credit</text>
-                    <text x="105" y="317" font-size="11" fill="#0891b2">₹</text>
-                    <circle cx="535" cy="315" r="45" fill="#eef2ff"/>
-                    <path d="M515 315 h40 M535 295 v40"
-                          stroke="#4f46e5" stroke-width="7" stroke-linecap="round"/>
-                    <path d="M520 345 h30" stroke="#0891b2" stroke-width="6"
-                          stroke-linecap="round"/>
-                </svg>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with text_col:
-        st.markdown("### From numbers to statements — in one workflow.")
-        st.write(
-            "Upload your Trial Balance, let Accountra classify the accounts, "
-            "review anything ambiguous, and generate Schedule III-style "
-            "financial statements with validation checks."
-        )
-
-        f1, f2 = st.columns(2)
-        with f1:
-            st.markdown(
-                """
-                <div class="landing-feature">
-                    <div class="landing-feature-title">📂 Upload</div>
-                    <div class="landing-feature-text">
-                        Start with your Excel or CSV Trial Balance.
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        with f2:
-            st.markdown(
-                """
-                <div class="landing-feature">
-                    <div class="landing-feature-title">🤖 Classify</div>
-                    <div class="landing-feature-text">
-                        AI-assisted account classification with review flags.
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        f3, f4 = st.columns(2)
-        with f3:
-            st.markdown(
-                """
-                <div class="landing-feature">
-                    <div class="landing-feature-title">📑 Generate</div>
-                    <div class="landing-feature-text">
-                        Prepare Profit &amp; Loss and Balance Sheet statements.
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-        with f4:
-            st.markdown(
-                """
-                <div class="landing-feature">
-                    <div class="landing-feature-title">✅ Validate</div>
-                    <div class="landing-feature-text">
-                        Check balances and review accounting classifications.
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button(
-            "🚀 Get Started",
-            type="primary",
-            use_container_width=True,
-            key="landing_get_started",
-        ):
-            st.session_state["app_page"] = "workspace"
+def nav_button(key, label):
+    active = st.session_state.get("app_page", "home") == key
+    if active:
+        st.markdown(f'<div class="nav-active">{html_escape(label)}</div>', unsafe_allow_html=True)
+    else:
+        if st.button(label, key=f"nav_{key}", use_container_width=True):
+            st.session_state["app_page"] = key
             st.rerun()
 
-    st.markdown(
-        '<div style="text-align:center;margin:1.2rem 0 .5rem;"><a href="?seo=trial-balance-to-financial-statements">Learn how to turn a Trial Balance into financial statements →</a></div>',
-        unsafe_allow_html=True,
-    )
 
-    st.markdown(
-        '<div class="landing-note">Built for accounting workflows • Always review outputs before statutory use.</div>',
-        unsafe_allow_html=True,
-    )
+def page_header(eyebrow, title, subtitle=""):
+    st.markdown(f'<div class="page-eyebrow">{html_escape(eyebrow)}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="page-title">{html_escape(title)}</div>', unsafe_allow_html=True)
+    if subtitle:
+        st.markdown(f'<div class="page-subtitle">{html_escape(subtitle)}</div>', unsafe_allow_html=True)
 
-    st.stop()
 
-st.markdown(
-    f"""
-    <div class="workspace-topbar">
-        <div class="acc-brand">
-            <span class="acc-logo-mark">A</span>
-            <span>
-                <span class="acc-brand-name">Accountra</span>
-                <span class="acc-brand-sub">Financial statement workspace</span>
-            </span>
-        </div>
-        <div class="workspace-context">
-            <strong>Classify · Prepare · Validate</strong><br>
-            AI-assisted accounting workflow
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+def metric_card(label, value, meta=""):
+    return f'''<div class="kpi"><div class="kpi-label">{html_escape(label)}</div><div class="kpi-value">{html_escape(value)}</div><div class="kpi-meta">{html_escape(meta)}</div></div>'''
 
-st.markdown(
-    """
-    <div class="app-hero">
-        <h1>Your accounting workspace</h1>
-        <p>Upload a Trial Balance, validate the numbers, review classifications, and generate polished financial statements.</p>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
-# =========================================================
-# SIDEBAR — REPORTING INFORMATION
-# =========================================================
+def insight_card(title, copy, tone="good"):
+    return f'''<div class="insight insight-{tone}"><div class="insight-title">{html_escape(title)}</div><div class="insight-copy">{html_escape(copy)}</div></div>'''
 
-with st.sidebar:
-    st.markdown(
-        """
-        <div class="sidebar-brand">
-            <div class="acc-brand">
-                <span class="acc-logo-mark">A</span>
-                <span>
-                    <span class="acc-brand-name">Accountra</span>
-                    <span class="acc-brand-sub">Accounting workspace</span>
-                </span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
-    if st.button("← Back to home", use_container_width=True, key="back_home"):
-        st.session_state["app_page"] = "landing"
-        st.rerun()
+def render_nav_sidebar():
+    with st.sidebar:
+        st.markdown(f'''<div class="brand"><img class="brand-mark" src="assets/accountra_mark.png"><div><div class="brand-name">Accountra</div><div class="brand-sub">AI financial workspace</div></div></div>''', unsafe_allow_html=True)
+        st.markdown('<div class="nav-label">Workspace</div>', unsafe_allow_html=True)
+        nav_button("home", "Overview")
+        nav_button("trial_balance", "Trial Balance")
+        nav_button("ai_review", "AI Review")
+        nav_button("statements", "Financial Statements")
+        nav_button("validation", "Validation")
+        nav_button("reports", "Reports & Export")
+        st.markdown('<div class="nav-label" style="margin-top:.8rem">Manage</div>', unsafe_allow_html=True)
+        nav_button("settings", "Report Settings")
+        st.markdown('<div class="nav-caption">Accountra turns a Trial Balance into a reviewed, validated financial reporting workflow.</div>', unsafe_allow_html=True)
+        if st.session_state.get("prepared"):
+            st.markdown('<div style="margin:.6rem .55rem"><span class="status-pill status-good">● Workspace ready</span></div>', unsafe_allow_html=True)
+        if st.button("Reset workspace", key="sidebar_reset", use_container_width=True):
+            clear_accounting_session()
+            st.session_state["app_page"] = "home"
+            st.rerun()
 
-    st.markdown('<div class="sidebar-section-label">Report setup</div>', unsafe_allow_html=True)
 
-    company_name = st.text_input(
-        "Company / Entity Name",
-        value="ABC Private Limited",
-        key="company_name",
-    )
+def render_topbar():
+    company = st.session_state.get("company_name") or "Your company"
+    fy = financial_year_label(st.session_state.get("reporting_date", date.today()))
+    st.markdown(f'''<div class="topbar"><div class="topbar-title"><strong>Accountra</strong> <span>·</span> {html_escape(company)}</div><div class="topbar-title">{html_escape(fy)} <span>·</span> AI-assisted</div></div>''', unsafe_allow_html=True)
 
-    cin = st.text_input(
-        "CIN / Registration No. (optional)",
-        value="",
-        key="cin",
-    )
 
-    materiality_threshold = st.number_input(
-        "Comparative movement review threshold (%)",
-        min_value=1.0,
-        max_value=100.0,
-        value=20.0,
-        step=5.0,
-        key="materiality_threshold",
-        help="Used only when a previous-year Trial Balance is supplied.",
-    )
+def financial_year_label(reporting_date):
+    d = reporting_date or date.today()
+    return f"FY {d.year-1}-{str(d.year)[-2:]}" if d.month <= 3 else f"FY {d.year}-{str(d.year+1)[-2:]}"
 
-    reporting_date = st.date_input(
-        "Reporting Date",
-        value=date.today(),
-        key="reporting_date",
-    )
+# -----------------------------
+# Input + processing helpers
+# -----------------------------
 
-    financial_year = (
-        f"{reporting_date.year - 1}-{str(reporting_date.year)[-2:]}"
-        if reporting_date.month <= 3
-        else f"{reporting_date.year}-{str(reporting_date.year + 1)[-2:]}"
-    )
-
-    st.caption(
-        f"Financial year: {financial_year}"
-    )
-
-    st.caption(
-        "These details are used for the report heading and exports."
-    )
-
-    if st.session_state.get("prepared", False):
-        st.markdown('<div class="sidebar-section-label">Workspace</div>', unsafe_allow_html=True)
-        st.markdown(
-            """
-            <div class='sidebar-nav'>
-                <a href='#overview'>⌂ &nbsp; Overview</a>
-                <a href='#trial-balance'>▤ &nbsp; Trial Balance</a>
-                <a href='#ai-review'>✦ &nbsp; AI Review</a>
-                <a href='#financial-statements'>▥ &nbsp; Financial Statements</a>
-                <a href='#final-validation'>✓ &nbsp; Data Quality</a>
-                <a href='#reports'>⇩ &nbsp; Reports</a>
-            </div>
-            <div class='sidebar-ai'><div style='font-weight:850;color:var(--acc-ink);font-size:.78rem;'>✦ Accountra AI</div><div style='font-size:.68rem;color:var(--acc-muted);margin-top:.18rem;'>Your accounting copilot for review and explanation.</div></div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    st.divider()
-    st.markdown("### Workflow")
-    st.markdown(
-        """
-        **1.** Upload Trial Balance  
-        **2.** Validate Debit = Credit  
-        **3.** Classify accounts  
-        **4.** Review ambiguous items  
-        **5.** Generate P&L + Balance Sheet  
-        **6.** Run final validation
-        """
-    )
-
-# STEP 1 — CHOOSE INPUT WORKFLOW
-# =========================================================
-
-st.markdown("## 1️⃣ Choose how you want to start")
-
-input_mode = "📊 I have a Trial Balance"
-
-source_df = None
-source_ready = False
-source_is_generated = False
-
-st.caption(
-    "Upload an Excel or CSV Trial Balance containing Account, Debit and Credit columns."
-)
-
-tb_col, soon_col = st.columns([1.45, 1])
-
-with tb_col:
-    st.markdown(
-        """
-        <div class="section-card">
-            <div class="fs-title">📊 I have a Trial Balance</div>
-            <div class="fs-subtitle">
-                Upload your Trial Balance and turn it into validated financial statements.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if "reset_nonce" not in st.session_state:
-        st.session_state["reset_nonce"] = 0
-
-    uploaded_file = st.file_uploader(
-        "Choose a Trial Balance file",
-        type=["xlsx", "xls", "csv"],
-        help="Supported formats: .xlsx, .xls and .csv",
-        key=f"trial_balance_upload_v3_{st.session_state['reset_nonce']}",
-    )
-
-with soon_col:
-    st.markdown(
-        """
-        <div class="section-card">
-            <div class="fs-title">🤖 Don't have a Trial Balance?</div>
-            <div class="fs-subtitle">
-                This option is coming soon.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-# ---------------------------------------------------------
-# PATH A — EXISTING TRIAL BALANCE WORKFLOW
-# ---------------------------------------------------------
-
-if uploaded_file:
-        reset_col, compare_col = st.columns([1, 2])
-        with reset_col:
-            if st.button(
-                "🗑️ Remove file & reset",
-                key="reset_uploaded_accounting_v3",
-                use_container_width=True,
-            ):
-                clear_accounting_session()
-                st.rerun()
-
-        st.markdown("### 📊 Comparative Information (Optional)")
-        st.caption(
-            "Have a previous-year Trial Balance? Upload it to show previous-period amounts and movement analysis. "
-            "If you do not provide one, the previous-period column remains — and no movement is calculated."
-        )
-        comparative_file = st.file_uploader(
-            "Upload previous-year Trial Balance (optional)",
-            type=["xlsx", "xls", "csv"],
-            help="Optional previous-year Trial Balance used for comparative presentation and movement analysis.",
-            key=f"comparative_trial_balance_upload_v3_{st.session_state['reset_nonce']}",
-        )
-
-        file_token = f"tb_{uploaded_file.name}_{uploaded_file.size}"
-        if st.session_state.get("file_token") != file_token:
-            st.session_state["file_token"] = file_token
-            st.session_state["prepared"] = False
-            st.session_state.pop("results", None)
-            st.session_state.pop("comparative_results", None)
-            st.session_state.pop("comparative_loaded", None)
-            for key in list(st.session_state.keys()):
-                if key.startswith("override_"):
-                    del st.session_state[key]
-
-        st.success(f"Uploaded: **{uploaded_file.name}**")
-
-        if uploaded_file.size and uploaded_file.size > 15 * 1024 * 1024:
-            st.error("File is larger than 15 MB. Please upload a smaller Trial Balance.")
-            st.stop()
-
-        try:
-            if uploaded_file.name.lower().endswith(".csv"):
-                source_df = pd.read_csv(uploaded_file)
-            else:
-                source_df = pd.read_excel(uploaded_file)
-        except Exception as upload_error:
-            st.error("Could not read the uploaded Trial Balance. Please check the file.")
-            st.exception(upload_error)
-            st.stop()
-
-        comparative_df = None
-        if comparative_file is not None:
-            if comparative_file.size and comparative_file.size > 15 * 1024 * 1024:
-                st.error("Comparative file is larger than 15 MB.")
-                st.stop()
-            try:
-                if comparative_file.name.lower().endswith(".csv"):
-                    comparative_df = pd.read_csv(comparative_file)
-                else:
-                    comparative_df = pd.read_excel(comparative_file)
-
-                comparative_df.columns = (
-                    comparative_df.columns.astype(str)
-                    .str.strip().str.lower()
-                    .str.replace("₹", "", regex=False)
-                    .str.replace("(", "", regex=False)
-                    .str.replace(")", "", regex=False)
-                    .str.strip()
-                )
-                comparative_df = comparative_df.rename(columns={
-                    "account": "Account", "account name": "Account", "ledger": "Account",
-                    "ledger account": "Account", "particulars": "Account",
-                    "debit": "Debit", "debits": "Debit", "dr": "Debit",
-                    "credit": "Credit", "credits": "Credit", "cr": "Credit",
-                })
-                required_comparative = {"Account", "Debit", "Credit"}
-                if not required_comparative.issubset(comparative_df.columns):
-                    st.warning(
-                        "Comparative file was uploaded but does not contain Account, Debit and Credit columns. "
-                        "Comparative information will be skipped."
-                    )
-                    comparative_df = None
-                else:
-                    total_row_names = {"total", "grand total", "trial balance total", "subtotal", "total trial balance"}
-                    comparative_df = comparative_df[
-                        ~comparative_df["Account"].astype(str).str.strip().str.lower().isin(total_row_names)
-                    ].copy()
-                    comparative_df["Debit"] = clean_number_series(comparative_df["Debit"])
-                    comparative_df["Credit"] = clean_number_series(comparative_df["Credit"])
-                    st.success(f"Comparative TB loaded: **{comparative_file.name}**")
-            except Exception as comparative_error:
-                st.warning("Could not read the comparative Trial Balance. The current-year workflow will continue without comparative information.")
-                st.exception(comparative_error)
-                comparative_df = None
-
-        source_ready = True
-        source_is_generated = False
-
-# ---------------------------------------------------------
-# COMMON TRIAL BALANCE NORMALISATION + VALIDATION
-# ---------------------------------------------------------
-
-if source_ready and source_df is not None:
-
-    df = source_df.copy()
-
-    # Normalise columns so both paths enter the same existing engine.
-    df.columns = (
-        df.columns.astype(str)
-        .str.strip()
-        .str.lower()
-        .str.replace("₹", "", regex=False)
-        .str.replace("(", "", regex=False)
-        .str.replace(")", "", regex=False)
-        .str.strip()
-    )
-
+def normalize_tb(uploaded_file):
+    if uploaded_file is None:
+        return None, None
+    try:
+        if uploaded_file.name.lower().endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
+    except Exception as exc:
+        return None, f"Could not read the uploaded Trial Balance: {exc}"
+    df.columns = (df.columns.astype(str).str.strip().str.lower().str.replace("₹", "", regex=False).str.replace("(", "", regex=False).str.replace(")", "", regex=False).str.strip())
     df = df.rename(columns={
-        "account": "Account",
-        "account name": "Account",
-        "ledger": "Account",
-        "ledger account": "Account",
-        "particulars": "Account",
-        "debit": "Debit",
-        "debits": "Debit",
-        "dr": "Debit",
-        "credit": "Credit",
-        "credits": "Credit",
-        "cr": "Credit",
+        "account":"Account", "account name":"Account", "ledger":"Account", "ledger account":"Account", "particulars":"Account",
+        "debit":"Debit", "debits":"Debit", "dr":"Debit", "credit":"Credit", "credits":"Credit", "cr":"Credit",
     })
-
-    required_columns = {"Account", "Debit", "Credit"}
-    if not required_columns.issubset(df.columns):
-        st.error(
-            "The file/data must contain Account, Debit and Credit columns. "
-            f"Detected: {df.columns.tolist()}"
-        )
-        st.stop()
-
-    total_row_names = {
-        "total", "grand total", "trial balance total", "subtotal", "total trial balance"
-    }
-    df = df[
-        ~df["Account"].astype(str).str.strip().str.lower().isin(total_row_names)
-    ].copy()
-
+    if not {"Account","Debit","Credit"}.issubset(df.columns):
+        return None, f"Required columns are Account, Debit and Credit. Detected: {df.columns.tolist()}"
+    total_names = {"total","grand total","trial balance total","subtotal","total trial balance"}
+    df = df[~df["Account"].astype(str).str.strip().str.lower().isin(total_names)].copy()
     df["Debit"] = clean_number_series(df["Debit"])
     df["Credit"] = clean_number_series(df["Credit"])
+    return df, None
 
-    st.markdown("### 📄 Trial Balance Preview")
-    preview_col1, preview_col2, preview_col3 = st.columns(3)
-    with preview_col1:
-        st.metric("Accounts", f"{len(df):,}")
-    with preview_col2:
-        st.metric("Total Debit", indian_currency(df["Debit"].sum()))
-    with preview_col3:
-        st.metric("Total Credit", indian_currency(df["Credit"].sum()))
 
-    st.dataframe(df, width="stretch", hide_index=True)
-
-    total_debit = float(df["Debit"].sum())
-    total_credit = float(df["Credit"].sum())
-    difference = total_debit - total_credit
-
-    st.markdown("### ⚖️ Trial Balance Validation")
-    if abs(difference) < 0.01:
-        st.success(
-            f"**Trial Balance is balanced ✅**  Debit: {indian_currency(total_debit)} | Credit: {indian_currency(total_credit)}"
-        )
-    else:
-        st.error(
-            f"**Trial Balance is NOT balanced ❌**  Debit: {indian_currency(total_debit)} | Credit: {indian_currency(total_credit)} | Difference: {indian_currency(abs(difference))}"
-        )
-
-    st.divider()
-    st.markdown("## 2️⃣ Prepare Financial Statements")
-
-    if st.button(
-        "📄 Prepare Financial Statements",
-        key="prepare_fs_button_v2",
-        type="primary",
-        use_container_width=True,
-    ):
-        if abs(difference) >= 0.01:
-            st.error("Cannot prepare financial statements because the Trial Balance is not balanced.")
-        elif source_is_generated and not st.session_state.get("generated_tb_confirmed", False):
-            st.error("Please confirm the AI-generated Trial Balance first.")
+def prepare_classifications(df, comparative_df=None):
+    results = []
+    total_rows = max(len(df), 1)
+    progress = st.progress(0, text="Classifying accounts…")
+    for index, row in df.iterrows():
+        account = str(row["Account"]).strip()
+        debit = float(row["Debit"] or 0)
+        credit = float(row["Credit"] or 0)
+        result = classify_account(account, debit, credit)
+        if result is None:
+            try:
+                result = classify_account_ai(account, debit, credit)
+            except Exception:
+                result = None
+        if result is None:
+            result = make_result("Unknown", "NEEDS_REVIEW", "NEEDS_REVIEW", "Unable to classify the account.", ambiguous=True, confidence=0, missing_information="Manual review required.")
+        nature = result.get("nature", "Unknown")
+        classification = result.get("classification", "NEEDS_REVIEW")
+        statement = result.get("statement", "NEEDS_REVIEW")
+        ambiguous = bool(result.get("ambiguous", True))
+        confidence = float(result.get("confidence", 0) or 0)
+        reason = result.get("reason", "") or ""
+        missing_information = result.get("missing_information")
+        if classification not in APPROVED_HEADS:
+            classification, statement, ambiguous, confidence = "NEEDS_REVIEW", "NEEDS_REVIEW", True, min(confidence, .50)
+            reason, missing_information = "AI returned an unapproved classification.", "Manual classification required."
+        elif classification in APPROVED_EXPENSE_HEADS | APPROVED_INCOME_HEADS:
+            statement = "Profit & Loss"
         else:
-            st.session_state["prepared"] = True
-            st.session_state.pop("results", None)
-            for key in list(st.session_state.keys()):
-                if key.startswith("override_"):
-                    del st.session_state[key]
-
-            results = []
-            progress = st.progress(0)
-            total_rows = max(len(df), 1)
-
-            for index, row in df.iterrows():
-                account = str(row["Account"]).strip()
-                debit = float(row["Debit"] or 0)
-                credit = float(row["Credit"] or 0)
-
-                result = classify_account(account, debit, credit)
-                if result is None:
-                    st.write(f"🤖 AI review required: **{account}**")
-                    try:
-                        result = classify_account_ai(account, debit, credit)
-                    except Exception:
-                        result = None
-
-                if result is None:
-                    result = make_result(
-                        "Unknown", "NEEDS_REVIEW", "NEEDS_REVIEW",
-                        "Unable to classify the account.",
-                        ambiguous=True, confidence=0,
-                        missing_information="Manual review required.",
-                    )
-
-                nature = result.get("nature", "Unknown")
-                classification = result.get("classification", "NEEDS_REVIEW")
-                statement = result.get("statement", "NEEDS_REVIEW")
-                ambiguous = bool(result.get("ambiguous", True))
-                confidence = float(result.get("confidence", 0) or 0)
-                reason = result.get("reason", "") or ""
-                missing_information = result.get("missing_information")
-
-                if classification not in APPROVED_HEADS:
-                    classification = "NEEDS_REVIEW"
-                    statement = "NEEDS_REVIEW"
-                    ambiguous = True
-                    confidence = min(confidence, 0.50)
-                    reason = "AI returned an unapproved classification."
-                    missing_information = "Manual classification required."
-                elif classification in APPROVED_EXPENSE_HEADS | APPROVED_INCOME_HEADS:
-                    statement = "Profit & Loss"
-                else:
-                    statement = "Balance Sheet"
-
-                results.append({
-                    "Account": account,
-                    "Debit": debit,
-                    "Credit": credit,
-                    "Nature": nature,
-                    "Classification": classification,
-                    "Statement": statement,
-                    "Ambiguous": ambiguous,
-                    "Confidence": confidence,
-                    "Reason": reason,
-                    "Missing Information": missing_information,
-                })
-                progress.progress((index + 1) / total_rows)
-
-            results_df = pd.DataFrame(results)
-            results_df["Debit"] = clean_number_series(results_df["Debit"])
-            results_df["Credit"] = clean_number_series(results_df["Credit"])
-            st.session_state["results"] = results_df.to_dict("records")
-
-            if comparative_df is not None and len(comparative_df):
-                comparative_results_df = classify_comparative_tb(comparative_df)
-                st.session_state["comparative_results"] = comparative_results_df.to_dict("records")
-                st.session_state["comparative_loaded"] = True
-            else:
-                st.session_state.pop("comparative_results", None)
-                st.session_state.pop("comparative_loaded", None)
-
-            st.success("AI analysis completed successfully! ✅")
+            statement = "Balance Sheet"
+        results.append({"Account":account,"Debit":debit,"Credit":credit,"Nature":nature,"Classification":classification,"Statement":statement,"Ambiguous":ambiguous,"Confidence":confidence,"Reason":reason,"Missing Information":missing_information})
+        progress.progress((index+1)/total_rows, text=f"Classifying {index+1:,} of {len(df):,} accounts")
+    progress.empty()
+    results_df = pd.DataFrame(results)
+    if comparative_df is not None and len(comparative_df):
+        comp = classify_comparative_tb(comparative_df)
+        st.session_state["comparative_results"] = comp.to_dict("records")
+        st.session_state["comparative_loaded"] = True
+    else:
+        st.session_state.pop("comparative_results", None)
+        st.session_state["comparative_loaded"] = False
+    return results_df
 
 
-# LOAD PREPARED RESULTS
-# =========================================================
-
-if st.session_state.get("prepared", False):
-
-    if "results" not in st.session_state:
-
-        st.error(
-            "Prepared results are missing. "
-            "Please prepare the financial statements again."
-        )
-        st.stop()
-
-    results_df = pd.DataFrame(
-        st.session_state["results"]
-    )
-
-    results_df["Debit"] = clean_number_series(
-        results_df["Debit"]
-    )
-    results_df["Credit"] = clean_number_series(
-        results_df["Credit"]
-    )
-
-    # =====================================================
-    # MANUAL OVERRIDES
-    # =====================================================
-
-    for key, override in list(
-        st.session_state.items()
-    ):
-
+def apply_overrides(results_df):
+    df = results_df.copy()
+    for key, override in list(st.session_state.items()):
         if not key.startswith("override_"):
             continue
+        account_name = key.replace("override_", "", 1)
+        mask = df["Account"] == account_name
+        df.loc[mask, "Classification"] = override
+        df.loc[mask, "Statement"] = "Profit & Loss" if override in (APPROVED_INCOME_HEADS | APPROVED_EXPENSE_HEADS) else "Balance Sheet"
+        df.loc[mask, "Ambiguous"] = False
+        df.loc[mask, "Confidence"] = 1.0
+    return df
 
-        account_name = key.replace(
-            "override_",
-            "",
-            1,
-        )
 
-        mask = (
-            results_df["Account"]
-            == account_name
-        )
-
-        results_df.loc[
-            mask,
-            "Classification"
-        ] = override
-
-        if override in (
-            APPROVED_INCOME_HEADS
-            | APPROVED_EXPENSE_HEADS
-        ):
-
-            results_df.loc[
-                mask,
-                "Statement"
-            ] = "Profit & Loss"
-
-        else:
-
-            results_df.loc[
-                mask,
-                "Statement"
-            ] = "Balance Sheet"
-
-        results_df.loc[
-            mask,
-            "Ambiguous"
-        ] = False
-
-        results_df.loc[
-            mask,
-            "Confidence"
-        ] = 1.0
-
-    # =====================================================
-    # V3 EXECUTIVE DASHBOARD
-    # =====================================================
-
-    # Dashboard metrics are derived from the already-classified results.
-    # This is presentation-only; the accounting engine remains unchanged.
-    _asset_rows = results_df[results_df["Nature"] == "Asset"].copy()
-    _liability_rows = results_df[results_df["Nature"] == "Liability"].copy()
-    _equity_rows = results_df[results_df["Nature"] == "Equity"].copy()
-    _income_rows = results_df[results_df["Nature"] == "Income"].copy()
-    _expense_rows = results_df[results_df["Nature"] == "Expense"].copy()
-
-    _total_assets = float((_asset_rows["Debit"] - _asset_rows["Credit"]).sum())
-    _total_liabilities = float((_liability_rows["Credit"] - _liability_rows["Debit"]).sum())
-    _total_equity = float((_equity_rows["Credit"] - _equity_rows["Debit"]).sum())
-    _revenue = float((_income_rows["Credit"] - _income_rows["Debit"]).sum())
-    _expenses = float((_expense_rows["Debit"] - _expense_rows["Credit"]).sum())
-    _net_profit = _revenue - _expenses
-    _review_count = int(results_df["Ambiguous"].fillna(True).sum())
-    _avg_confidence = float(pd.to_numeric(results_df["Confidence"], errors="coerce").fillna(0).mean()) if len(results_df) else 0.0
-    _tb_difference = float(results_df["Debit"].sum() - results_df["Credit"].sum())
-    _balance_ok = abs(_tb_difference) < 0.01
-    _year_label = financial_year
-
-    _profit_class = "metric-positive" if _net_profit >= 0 else "metric-warning"
-    _review_class = "metric-positive" if _review_count == 0 else "metric-warning"
-    _tb_status = "Balanced" if _balance_ok else "Needs review"
-    _tb_status_class = "good" if _balance_ok else "warn"
-
-    # A compact proportional chart keeps the dashboard useful without adding
-    # a plotting dependency to the application.
-    _chart_max = max(abs(_revenue), abs(_expenses), abs(_net_profit), 1.0)
-    _months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
-    _rev_profile = [0.72, 0.81, 0.77, 0.92, 0.86, 1.00]
-    _exp_profile = [0.61, 0.68, 0.64, 0.72, 0.69, 0.76]
-    _profit_profile = [max(0.08, r-e) for r,e in zip(_rev_profile, _exp_profile)]
-    _chart_columns = []
-    for _m, _r, _e, _p in zip(_months, _rev_profile, _exp_profile, _profit_profile):
-        _chart_columns.append(
-            f"<div class='chart-column' title='{_m}'><div class='chart-bar' style='height:{max(8,_r*145):.0f}px'></div><div class='chart-bar expense' style='height:{max(8,_e*145):.0f}px'></div><div class='chart-bar profit' style='height:{max(5,_p*145):.0f}px'></div></div>"
-        )
-
-    _insights = []
-    if _balance_ok:
-        _insights.append(("✓", "Trial Balance is perfectly balanced", f"Debit = Credit · {indian_currency(abs(_tb_difference))} difference", "good"))
-    else:
-        _insights.append(("!", "Trial Balance needs attention", f"Difference · {indian_currency(abs(_tb_difference))}", "warn"))
-    if _review_count:
-        _insights.append(("!", f"{_review_count} account(s) need review", "Open AI Review to resolve flagged classifications", "warn"))
-    else:
-        _insights.append(("✓", "No manual classifications pending", f"Average confidence · {_avg_confidence:.0%}", "good"))
-    if _net_profit >= 0:
-        _insights.append(("↗", "Current period is profitable", f"Net profit · {indian_currency(_net_profit)}", "good"))
-    else:
-        _insights.append(("↓", "Current period shows a loss", f"Net loss · {indian_currency(abs(_net_profit))}", "warn"))
-
-    _insight_html = "".join(
-        f"<div class='insight-item'><div class='insight-icon {kind}'>{icon}</div><div><div class='insight-title'>{title}</div><div class='insight-text'>{text}</div></div></div>"
-        for icon,title,text,kind in _insights[:4]
-    )
-
-    st.markdown("<div id='overview' class='section-anchor'></div>", unsafe_allow_html=True)
-    st.markdown(
-        f"""
-        <div class='dashboard-shell'>
-            <div class='dashboard-head'>
-                <div>
-                    <div class='dashboard-kicker'>Accountra Intelligence · Workspace</div>
-                    <div class='dashboard-title'>Good afternoon, {company_name or 'there'} 👋</div>
-                    <div class='dashboard-subtitle'>Here’s what’s happening with your books for <strong>{_year_label}</strong>.</div>
-                </div>
-                <div class='dashboard-period'>FY {_year_label} · AI-assisted</div>
-            </div>
-
-            <div class='metric-grid'>
-                <div class='metric-card'><div class='metric-icon'>◫</div><div class='metric-label'>Total Assets</div><div class='metric-value'>{indian_currency(_total_assets)}</div><div class='metric-meta'>Balance Sheet · Non-current + Current</div></div>
-                <div class='metric-card'><div class='metric-icon'>◈</div><div class='metric-label'>Total Liabilities</div><div class='metric-value'>{indian_currency(_total_liabilities)}</div><div class='metric-meta'>Borrowings · Payables · Provisions</div></div>
-                <div class='metric-card'><div class='metric-icon'>♧</div><div class='metric-label'>Total Equity</div><div class='metric-value'>{indian_currency(_total_equity)}</div><div class='metric-meta'>Share capital · Other equity</div></div>
-                <div class='metric-card'><div class='metric-icon'>↗</div><div class='metric-label'>Net Profit</div><div class='metric-value {_profit_class}'>{indian_currency(_net_profit)}</div><div class='metric-meta'>Revenue {indian_currency(_revenue)} · Expenses {indian_currency(_expenses)}</div></div>
-                <div class='metric-card'><div class='metric-icon'>✓</div><div class='metric-label'>Trial Balance</div><div class='metric-value'><span class='status-pill {_tb_status_class}'>{_tb_status}</span></div><div class='metric-meta'>Difference · {indian_currency(abs(_tb_difference))}</div></div>
-            </div>
-
-            <div class='dashboard-grid'>
-                <div class='dash-card'>
-                    <div class='dash-card-head'><div><div class='dash-card-title'>Financial Overview</div><div class='dash-card-caption'>Relative monthly profile · current period</div></div><span class='status-pill good'>{_year_label}</span></div>
-                    <div class='overview-chart'>{''.join(_chart_columns)}</div>
-                    <div style='display:flex;justify-content:space-between;margin-top:.35rem;font-size:.64rem;color:var(--acc-muted);'>{''.join(f"<span>{m}</span>" for m in _months)}</div>
-                    <div class='chart-legend'><span><i class='legend-dot'></i>Revenue</span><span><i class='legend-dot expense'></i>Expenses</span><span><i class='legend-dot profit'></i>Net Profit</span></div>
-                </div>
-                <div class='dash-card'>
-                    <div class='dash-card-head'><div><div class='dash-card-title'>Accountra Intelligence</div><div class='dash-card-caption'>What deserves your attention</div></div><span class='status-pill {'warn' if _review_count else 'good'}'>{_review_count} review</span></div>
-                    <div class='insight-list'>{_insight_html}</div>
-                    <div class='ai-copilot'><div class='ai-copilot-title'>✦ Accountra AI</div><div class='ai-copilot-copy'>Your accounting copilot is ready to explain classifications, movements and validation results.</div></div>
-                </div>
-                <div class='dash-card'>
-                    <div class='dash-card-head'><div><div class='dash-card-title'>Quick Actions</div><div class='dash-card-caption'>Jump straight into your workflow</div></div></div>
-                    <div class='quick-actions'>
-                        <a class='quick-action' href='#trial-balance'><span class='quick-action-icon'>↥</span>Trial Balance</a>
-                        <a class='quick-action' href='#ai-review'><span class='quick-action-icon'>✦</span>AI Review</a>
-                        <a class='quick-action' href='#financial-statements'><span class='quick-action-icon'>▤</span>Financial Statements</a>
-                        <a class='quick-action' href='#final-validation'><span class='quick-action-icon'>✓</span>Validation</a>
-                        <a class='quick-action' href='#reports'><span class='quick-action-icon'>⇩</span>Export Reports</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        f"<div class='detail-bar'><div><div class='detail-bar-title'>Detailed accounting workspace</div><div class='detail-bar-copy'>{len(results_df):,} accounts classified · {_review_count} review item(s) · average confidence {_avg_confidence:.0%}</div></div><a class='status-pill {'good' if _review_count == 0 else 'warn'}' href='#trial-balance'>{'All clear' if _review_count == 0 else 'Review flagged items →'}</a></div>",
-        unsafe_allow_html=True,
-    )
-
-    # =====================================================
-    # ACCOUNT CLASSIFICATION TABLE
-    # =====================================================
-
-    st.divider()
-    st.markdown("<div id='trial-balance' class='section-anchor'></div>", unsafe_allow_html=True)
-    st.markdown("## 3️⃣ AI Classification Results")
-
-    display_columns = [
-        "Account",
-        "Debit",
-        "Credit",
-        "Nature",
-        "Classification",
-        "Statement",
-        "Ambiguous",
-        "Confidence",
-    ]
-
-    st.dataframe(
-        results_df[display_columns],
-        width="stretch",
-        hide_index=True,
-    )
-
-    # =====================================================
-    # REVIEW & EXCEPTIONS
-    # =====================================================
-
-    review_df = results_df[
-        results_df["Ambiguous"] == True
-    ].copy()
-
-    st.divider()
-    st.markdown("<div id='ai-review' class='section-anchor'></div>", unsafe_allow_html=True)
-    st.markdown("## 4️⃣ Review & Exceptions")
-
-    if len(review_df) > 0:
-
-        st.warning(
-            f"⚠️ {len(review_df)} account(s) require review."
-        )
-
-        st.dataframe(
-            review_df[
-                [
-                    "Account",
-                    "Classification",
-                    "Reason",
-                    "Missing Information",
-                    "Confidence",
-                ]
-            ],
-            width="stretch",
-            hide_index=True,
-        )
-
-        st.markdown("### 🛠️ Manual Classification Override")
-
-        selected_account = st.selectbox(
-            "Select an account to review",
-            review_df["Account"].tolist(),
-            key="selected_review_account_v2",
-        )
-
-        selected_row = review_df[
-            review_df["Account"]
-            == selected_account
-        ].iloc[0]
-
-        st.info(
-            f"**Current classification:** "
-            f"{selected_row['Classification']}\n\n"
-            f"**Reason:** {selected_row['Reason']}"
-        )
-
-        selected_nature = selected_row["Nature"]
-        selected_classification = (
-            selected_row["Classification"]
-        )
-
-        if selected_nature == "Liability":
-
-            if selected_classification == "Borrowings":
-
-                override_options = [
-                    "Current Borrowings",
-                    "Non-current Borrowings",
-                ]
-
-            else:
-
-                override_options = [
-                    "Trade Payables",
-                    "Provisions",
-                    "Other Current Liabilities",
-                    "Other Non-current Liabilities",
-                ]
-
-        elif selected_nature == "Asset":
-
-            override_options = [
-                "PPE",
-                "Capital Work-in-Progress",
-                "Intangible Assets",
-                "Intangible Assets Under Development",
-                "Investment Property",
-                "Investments",
-                "Inventories",
-                "Trade Receivables",
-                "Cash & Cash Equivalents",
-                "Other Current Assets",
-                "Other Non-current Assets",
-            ]
-
-        elif selected_nature == "Equity":
-
-            override_options = [
-                "Share Capital",
-                "Other Equity",
-                "Capital Account",
-            ]
-
-        elif selected_nature == "Income":
-
-            override_options = [
-                "Revenue from Operations",
-                "Other Income",
-            ]
-
-        elif selected_nature == "Expense":
-
-            override_options = [
-                "Cost of Materials Consumed",
-                "Purchases",
-                "Changes in Inventories",
-                "Employee Benefits Expense",
-                "Finance Costs",
-                "Depreciation & Amortisation",
-                "Other Expenses",
-                "Tax Expense",
-            ]
-
-        else:
-
-            override_options = []
-
-        if override_options:
-
-            new_classification = st.selectbox(
-                "Choose the correct classification",
-                override_options,
-                key=f"classification_override_{selected_account}",
-            )
-
-            if st.button(
-                "✅ Apply Classification",
-                key="apply_override_v2",
-            ):
-
-                st.session_state[
-                    f"override_{selected_account}"
-                ] = new_classification
-
-                st.success(
-                    f"{selected_account} updated to "
-                    f"{new_classification}. ✅"
-                )
-
-                st.rerun()
-
-    else:
-
-        st.success(
-            "No accounts require manual review. ✅"
-        )
-
-        # =====================================================
-        # SCHEDULE III — MODERN STATEMENT DISPLAY
-    # =====================================================
-
-    st.divider()
-    st.markdown("<div id='financial-statements' class='section-anchor'></div>", unsafe_allow_html=True)
-    st.markdown("## 5️⃣ Financial Statements")
-
-    st.caption(
-        "Schedule III-style presentation with a separate amount column. "
-        "Previous-period figures are shown only when comparative data is supplied; otherwise they remain —."
-    )
-
+def compute_financials(results_df):
     pnl_df = results_df[results_df["Statement"] == "Profit & Loss"].copy()
-
     revenue_rows = pnl_df[pnl_df["Classification"].isin(APPROVED_INCOME_HEADS)]
-    revenue_summary = (
-        revenue_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-        if len(revenue_rows)
-        else pd.DataFrame(columns=["Debit", "Credit"])
-    )
-    if len(revenue_summary):
-        revenue_summary["Net"] = revenue_summary["Credit"] - revenue_summary["Debit"]
-
-    revenue_ops = (
-        float(revenue_summary.loc["Revenue from Operations", "Credit"]
-              - revenue_summary.loc["Revenue from Operations", "Debit"])
-        if "Revenue from Operations" in revenue_summary.index else 0.0
-    )
-    other_income = (
-        float(revenue_summary.loc["Other Income", "Credit"]
-              - revenue_summary.loc["Other Income", "Debit"])
-        if "Other Income" in revenue_summary.index else 0.0
-    )
+    revenue_summary = revenue_rows.groupby("Classification")[["Debit","Credit"]].sum() if len(revenue_rows) else pd.DataFrame(columns=["Debit","Credit"])
+    if len(revenue_summary): revenue_summary["Net"] = revenue_summary["Credit"] - revenue_summary["Debit"]
+    revenue_ops = float(revenue_summary.loc["Revenue from Operations","Net"]) if "Revenue from Operations" in revenue_summary.index else 0.0
+    other_income = float(revenue_summary.loc["Other Income","Net"]) if "Other Income" in revenue_summary.index else 0.0
     total_revenue = float(revenue_summary["Net"].sum()) if len(revenue_summary) else 0.0
-
-    pre_tax_expense_heads = APPROVED_EXPENSE_HEADS - {"Tax Expense"}
-    expense_rows = pnl_df[pnl_df["Classification"].isin(pre_tax_expense_heads)]
-    expense_summary = (
-        expense_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-        if len(expense_rows)
-        else pd.DataFrame(columns=["Debit", "Credit"])
-    )
-    if len(expense_summary):
-        expense_summary["Net"] = expense_summary["Debit"] - expense_summary["Credit"]
-
+    pre_tax_heads = APPROVED_EXPENSE_HEADS - {"Tax Expense"}
+    expense_rows = pnl_df[pnl_df["Classification"].isin(pre_tax_heads)]
+    expense_summary = expense_rows.groupby("Classification")[["Debit","Credit"]].sum() if len(expense_rows) else pd.DataFrame(columns=["Debit","Credit"])
+    if len(expense_summary): expense_summary["Net"] = expense_summary["Debit"] - expense_summary["Credit"]
     total_expenses = float(expense_summary["Net"].sum()) if len(expense_summary) else 0.0
-
     tax_rows = pnl_df[pnl_df["Classification"] == "Tax Expense"]
-    tax_summary = (
-        tax_rows[["Debit", "Credit"]].sum()
-        if len(tax_rows)
-        else pd.Series({"Debit": 0.0, "Credit": 0.0})
-    )
+    tax_summary = tax_rows[["Debit","Credit"]].sum() if len(tax_rows) else pd.Series({"Debit":0.0,"Credit":0.0})
     tax_expense = max(0.0, float(tax_summary["Debit"] - tax_summary["Credit"]))
-    profit_before_tax = total_revenue - total_expenses
-    profit = profit_before_tax - tax_expense
-
-
-    def amount_from_summary(summary, head, sign="net"):
-        if head not in summary.index:
-            return 0.0
-        if sign == "income":
-            return float(summary.loc[head, "Credit"] - summary.loc[head, "Debit"])
-        if sign == "expense":
-            return float(summary.loc[head, "Debit"] - summary.loc[head, "Credit"])
-        return float(summary.loc[head, "Net"])
-
-
-    def render_statement_table(title, subtitle, rows):
-        html_rows = []
-        for row in rows:
-            kind = row.get("kind", "line")
-            label = row.get("label", "")
-            note = row.get("note", "")
-            current = row.get("current")
-            previous = row.get("previous")
-
-            if current is None:
-                current_html = ""
-            else:
-                current_html = indian_currency(current)
-
-            if previous is None:
-                previous_html = "—"
-            else:
-                previous_html = indian_currency(previous)
-
-            cls = f"fs-row {kind}"
-            html_rows.append(
-                f"<tr class='{cls}'>"
-                f"<td class='particular'>{label}</td>"
-                f"<td class='note'>{note}</td>"
-                f"<td class='amount'>{current_html}</td>"
-                f"<td class='amount'>{previous_html}</td>"
-                f"</tr>"
-            )
-
-        st.markdown(
-            f"""
-            <div class='statement-card'>
-                <div class='statement-head'>
-                    <div class='statement-title'>{title}</div>
-                    <div class='statement-subtitle'>{company_name} · {subtitle}</div>
-                </div>
-                <div class='statement-scroll'>
-                    <table class='statement-table'>
-                        <thead>
-                            <tr>
-                                <th>Particulars</th>
-                                <th class='note'>Note No.</th>
-                                <th class='amount'>Current Period ₹</th>
-                                <th class='amount'>Previous Period ₹</th>
-                            </tr>
-                        </thead>
-                        <tbody>{''.join(html_rows)}</tbody>
-                    </table>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-    # -----------------------------------------------------
-    # COMPARATIVE INFORMATION / MOVEMENT ANALYSIS
-    # -----------------------------------------------------
-
-    comparative_previous = {}
-    if st.session_state.get("comparative_results"):
-        comparative_results_df = pd.DataFrame(st.session_state["comparative_results"])
-        if len(comparative_results_df):
-            prev_group = comparative_results_df.groupby("Classification")[["Debit", "Credit"]].sum()
-            prev_group["Net"] = prev_group["Credit"] - prev_group["Debit"]
-            comparative_previous = prev_group["Net"].to_dict()
-
-            current_group = results_df.groupby("Classification")[["Debit", "Credit"]].sum()
-            current_group["Net"] = current_group["Credit"] - current_group["Debit"]
-            movement_rows = []
-            all_heads = sorted(set(current_group.index) | set(prev_group.index))
-            for head in all_heads:
-                cur = float(current_group.loc[head, "Net"]) if head in current_group.index else 0.0
-                prev = float(prev_group.loc[head, "Net"]) if head in prev_group.index else 0.0
-                change = cur - prev
-                if abs(prev) < 0.005:
-                    change_pct = None
-                else:
-                    change_pct = (change / abs(prev)) * 100.0
-                material = bool(change_pct is not None and abs(change_pct) >= float(materiality_threshold))
-                movement_rows.append({
-                    "Classification": head,
-                    "Current Period": cur,
-                    "Previous Period": prev,
-                    "Change": change,
-                    "Change %": change_pct,
-                    "Material Movement": material,
-                })
-
-            st.divider()
-            st.markdown("## 📈 Comparative Information")
-            st.caption(
-                f"Previous-year information supplied. Material movement threshold: {materiality_threshold:.0f}%."
-            )
-            movement_df = pd.DataFrame(movement_rows)
-            display_movement = movement_df.copy()
-            display_movement["Current Period"] = display_movement["Current Period"].map(indian_currency)
-            display_movement["Previous Period"] = display_movement["Previous Period"].map(indian_currency)
-            display_movement["Change"] = display_movement["Change"].map(indian_currency)
-            display_movement["Change %"] = display_movement["Change %"].apply(
-                lambda x: "—" if pd.isna(x) else f"{x:+.1f}%"
-            )
-            display_movement = display_movement.rename(columns={
-                "Current Period": "Current Period ₹",
-                "Previous Period": "Previous Period ₹",
-                "Change": "Change ₹",
-            })
-            st.dataframe(display_movement, width="stretch", hide_index=True)
-
-            material_rows = movement_df[movement_df["Material Movement"]].copy()
-            if len(material_rows):
-                st.warning(f"⚠️ {len(material_rows)} classification(s) crossed the {materiality_threshold:.0f}% movement review threshold.")
-            else:
-                st.success("No classification-level movements crossed the selected review threshold.")
-
-    # -----------------------------------------------------
-    # P&L
-    # -----------------------------------------------------
-
-    def previous_amount(classification, income=False, expense=False):
-        value = comparative_previous.get(classification)
-        if value is None:
-            return None
-        return float(value)
-
-    pnl_rows_display = [
-        {"label": "I. Revenue from Operations", "kind": "section"},
-        {"label": "Revenue from Operations", "note": "1", "current": amount_from_summary(revenue_summary, "Revenue from Operations", "income"), "previous": previous_amount("Revenue from Operations"), "kind": "line indent"},
-        {"label": "II. Other Income", "kind": "section"},
-        {"label": "Other Income", "note": "2", "current": amount_from_summary(revenue_summary, "Other Income", "income"), "previous": previous_amount("Other Income"), "kind": "line indent"},
-        {"label": "III. Total Income", "current": total_revenue, "previous": (sum(v for k,v in comparative_previous.items() if k in APPROVED_INCOME_HEADS) if comparative_previous else None), "kind": "total"},
-        {"label": "IV. Expenses", "kind": "section"},
-    ]
-
-    pnl_order = [
-        "Cost of Materials Consumed",
-        "Purchases",
-        "Changes in Inventories",
-        "Employee Benefits Expense",
-        "Finance Costs",
-        "Depreciation & Amortisation",
-        "Other Expenses",
-    ]
-
-    note_no = 3
-    for head in pnl_order:
-        amount = amount_from_summary(expense_summary, head, "expense")
-        if abs(amount) > 0.005:
-            pnl_rows_display.append({
-                "label": head,
-                "note": str(note_no),
-                "current": amount,
-                "previous": previous_amount(head),
-                "kind": "line indent",
-            })
-            note_no += 1
-
-    pnl_rows_display.extend([
-        {"label": "Total Expenses", "current": total_expenses, "previous": (sum(v for k,v in comparative_previous.items() if k in APPROVED_EXPENSE_HEADS and k != "Tax Expense") if comparative_previous else None), "kind": "total"},
-        {"label": "Profit Before Tax", "current": profit_before_tax, "kind": "subtotal"},
-        {"label": "Tax Expense", "note": str(note_no), "current": tax_expense, "previous": previous_amount("Tax Expense"), "kind": "line indent"},
-        {"label": "Profit for the Period", "current": profit, "kind": "grand-total"},
-    ])
-
-    st.markdown("### 📑 Statement of Profit & Loss")
-    render_statement_table(
-        "STATEMENT OF PROFIT & LOSS",
-        f"For the period ended {reporting_date.strftime('%d %B %Y')}",
-        pnl_rows_display,
-    )
-
-    # -----------------------------------------------------
-    # BALANCE SHEET SUMMARIES
-    # -----------------------------------------------------
+    pbt = total_revenue - total_expenses
+    profit = pbt - tax_expense
 
     asset_rows = results_df[results_df["Classification"].isin(APPROVED_ASSET_HEADS)]
-    asset_summary = (
-        asset_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-        if len(asset_rows)
-        else pd.DataFrame(columns=["Debit", "Credit"])
-    )
-    if len(asset_summary):
-        asset_summary["Net"] = asset_summary["Debit"] - asset_summary["Credit"]
-
+    asset_summary = asset_rows.groupby("Classification")[["Debit","Credit"]].sum() if len(asset_rows) else pd.DataFrame(columns=["Debit","Credit"])
+    if len(asset_summary): asset_summary["Net"] = asset_summary["Debit"] - asset_summary["Credit"]
     total_assets = float(asset_summary["Net"].sum()) if len(asset_summary) else 0.0
-
     liability_rows = results_df[results_df["Classification"].isin(APPROVED_LIABILITY_HEADS)]
-    liability_summary = (
-        liability_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-        if len(liability_rows)
-        else pd.DataFrame(columns=["Debit", "Credit"])
-    )
-    if len(liability_summary):
-        liability_summary["Net"] = liability_summary["Credit"] - liability_summary["Debit"]
-
+    liability_summary = liability_rows.groupby("Classification")[["Debit","Credit"]].sum() if len(liability_rows) else pd.DataFrame(columns=["Debit","Credit"])
+    if len(liability_summary): liability_summary["Net"] = liability_summary["Credit"] - liability_summary["Debit"]
     total_liabilities = float(liability_summary["Net"].sum()) if len(liability_summary) else 0.0
-
     equity_rows = results_df[results_df["Classification"].isin(APPROVED_EQUITY_HEADS)]
-    equity_summary = (
-        equity_rows.groupby("Classification")[["Debit", "Credit"]].sum()
-        if len(equity_rows)
-        else pd.DataFrame(columns=["Debit", "Credit"])
-    )
-    if len(equity_summary):
-        equity_summary["Net"] = equity_summary["Credit"] - equity_summary["Debit"]
-
+    equity_summary = equity_rows.groupby("Classification")[["Debit","Credit"]].sum() if len(equity_rows) else pd.DataFrame(columns=["Debit","Credit"])
+    if len(equity_summary): equity_summary["Net"] = equity_summary["Credit"] - equity_summary["Debit"]
     total_equity = float(equity_summary["Net"].sum()) if len(equity_summary) else 0.0
-
     total_equity_and_liabilities = total_equity + profit + total_liabilities
 
-    non_current_asset_groups = [
-        ("Property, Plant and Equipment", ["PPE"]),
-        ("Intangible Assets", ["Intangible Assets"]),
-        ("Capital Work-in-Progress", ["Capital Work-in-Progress"]),
-        ("Intangible Assets under Development", ["Intangible Assets Under Development"]),
-        ("Investment Property", ["Investment Property"]),
-        ("Non-current Investments", ["Investments"]),
-        ("Other Non-current Assets", ["Other Non-current Assets"]),
-    ]
-    current_asset_groups = [
-        ("Inventories", ["Inventories"]),
-        ("Trade Receivables", ["Trade Receivables"]),
-        ("Cash and Cash Equivalents", ["Cash & Cash Equivalents"]),
-        ("Other Current Assets", ["Other Current Assets"]),
-    ]
-    non_current_liability_groups = [
-        ("Long-term Borrowings", ["Non-current Borrowings"]),
-        ("Other Long-term Liabilities", ["Other Non-current Liabilities"]),
-    ]
-    current_liability_groups = [
-        ("Short-term Borrowings", ["Current Borrowings"]),
-        ("Trade Payables", ["Trade Payables"]),
-        ("Other Current Liabilities", ["Other Current Liabilities"]),
-        ("Short-term Provisions", ["Provisions"]),
-    ]
-
-    def group_amount(summary, classifications):
-        total = 0.0
-        for classification in classifications:
-            if classification in summary.index:
-                total += float(summary.loc[classification, "Net"])
-        return total
-
-    share_capital = group_amount(equity_summary, ["Share Capital"])
-    other_equity = group_amount(equity_summary, ["Other Equity", "Capital Account"])
+    nca = [("Property, Plant and Equipment",["PPE"]),("Intangible Assets",["Intangible Assets"]),("Capital Work-in-Progress",["Capital Work-in-Progress"]),("Intangible Assets under Development",["Intangible Assets Under Development"]),("Investment Property",["Investment Property"]),("Non-current Investments",["Investments"]),("Other Non-current Assets",["Other Non-current Assets"])]
+    ca = [("Inventories",["Inventories"]),("Trade Receivables",["Trade Receivables"]),("Cash and Cash Equivalents",["Cash & Cash Equivalents"]),("Other Current Assets",["Other Current Assets"])]
+    ncl = [("Long-term Borrowings",["Non-current Borrowings"]),("Other Long-term Liabilities",["Other Non-current Liabilities"])]
+    cl = [("Short-term Borrowings",["Current Borrowings"]),("Trade Payables",["Trade Payables"]),("Other Current Liabilities",["Other Current Liabilities"]),("Short-term Provisions",["Provisions"])]
+    def group_amount(summary, classes):
+        return sum(float(summary.loc[c,"Net"]) for c in classes if c in summary.index)
+    share_capital = group_amount(equity_summary,["Share Capital"])
+    other_equity = group_amount(equity_summary,["Other Equity","Capital Account"])
     shareholders_funds = share_capital + other_equity
-
-    non_current_liability_total = sum(group_amount(liability_summary, c) for _, c in non_current_liability_groups)
-    current_liability_total = sum(group_amount(liability_summary, c) for _, c in current_liability_groups)
-    non_current_asset_total = sum(group_amount(asset_summary, c) for _, c in non_current_asset_groups)
-    current_asset_total = sum(group_amount(asset_summary, c) for _, c in current_asset_groups)
-
-    # -----------------------------------------------------
-    # BALANCE SHEET
-    # -----------------------------------------------------
-
-    bs_rows_display = [
-        {"label": "I. EQUITY AND LIABILITIES", "kind": "section"},
-        {"label": "1. Shareholders' Funds", "kind": "subsection"},
-        {"label": "Share Capital", "note": "1", "current": share_capital, "previous": previous_amount("Share Capital"), "kind": "line indent"},
-        {"label": "Other Equity", "note": "2", "current": other_equity, "previous": (previous_amount("Other Equity") if previous_amount("Other Equity") is not None else previous_amount("Capital Account")), "kind": "line indent"},
-        {"label": "2. Non-current Liabilities", "kind": "subsection"},
-    ]
-
-    note_no = 3
-    for label, classifications in non_current_liability_groups:
-        amount = group_amount(liability_summary, classifications)
-        if abs(amount) > 0.005:
-            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "previous": (sum(previous_amount(c) or 0.0 for c in classifications) if comparative_previous else None), "kind": "line indent"})
-            note_no += 1
-
-    bs_rows_display.append({"label": "3. Current Liabilities", "kind": "subsection"})
-    for label, classifications in current_liability_groups:
-        amount = group_amount(liability_summary, classifications)
-        if abs(amount) > 0.005:
-            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "previous": (sum(previous_amount(c) or 0.0 for c in classifications) if comparative_previous else None), "kind": "line indent"})
-            note_no += 1
-
-    bs_rows_display.append({"label": "Total Equity and Liabilities", "current": total_equity_and_liabilities, "kind": "grand-total"})
-    bs_rows_display.append({"label": "II. ASSETS", "kind": "section"})
-    bs_rows_display.append({"label": "1. Non-current Assets", "kind": "subsection"})
-
-    for label, classifications in non_current_asset_groups:
-        amount = group_amount(asset_summary, classifications)
-        if abs(amount) > 0.005:
-            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "previous": (sum(previous_amount(c) or 0.0 for c in classifications) if comparative_previous else None), "kind": "line indent"})
-            note_no += 1
-
-    bs_rows_display.append({"label": "2. Current Assets", "kind": "subsection"})
-    for label, classifications in current_asset_groups:
-        amount = group_amount(asset_summary, classifications)
-        if abs(amount) > 0.005:
-            bs_rows_display.append({"label": label, "note": str(note_no), "current": amount, "previous": (sum(previous_amount(c) or 0.0 for c in classifications) if comparative_previous else None), "kind": "line indent"})
-            note_no += 1
-
-    bs_rows_display.append({"label": "Total Assets", "current": total_assets, "kind": "grand-total"})
-
-    st.markdown("### 📊 Balance Sheet")
-    render_statement_table(
-        "BALANCE SHEET",
-        f"As at {reporting_date.strftime('%d %B %Y')}",
-        bs_rows_display,
-    )
-
+    ncl_total = sum(group_amount(liability_summary,c) for _,c in ncl)
+    cl_total = sum(group_amount(liability_summary,c) for _,c in cl)
+    nca_total = sum(group_amount(asset_summary,c) for _,c in nca)
+    ca_total = sum(group_amount(asset_summary,c) for _,c in ca)
     balance_difference = total_assets - total_equity_and_liabilities
-    if abs(balance_difference) < 0.01:
-        st.success(f"**Balance Sheet Tally ✅** · Difference: {indian_currency(0)}")
-    else:
-        st.error(
-            f"**Balance Sheet Tally Failed ❌** · Difference: {indian_currency(abs(balance_difference))}"
-        )
-
-    # -----------------------------------------------------
-    # NOTES TO ACCOUNTS
-    # -----------------------------------------------------
-
-    st.divider()
-    st.markdown("## 📚 Notes to Accounts")
-    st.caption("Account-level composition behind the Schedule III-style line items shown above.")
-
-    note_definitions = [
-        ("1", "Share Capital", ["Share Capital"]),
-        ("2", "Other Equity", ["Other Equity", "Capital Account"]),
-    ]
-
-    for label, classifications in non_current_liability_groups:
-        amount = group_amount(liability_summary, classifications)
-        if abs(amount) > 0.005:
-            note_definitions.append((str(len(note_definitions) + 1), label, classifications))
-    for label, classifications in current_liability_groups:
-        amount = group_amount(liability_summary, classifications)
-        if abs(amount) > 0.005:
-            note_definitions.append((str(len(note_definitions) + 1), label, classifications))
-    for label, classifications in non_current_asset_groups:
-        amount = group_amount(asset_summary, classifications)
-        if abs(amount) > 0.005:
-            note_definitions.append((str(len(note_definitions) + 1), label, classifications))
-    for label, classifications in current_asset_groups:
-        amount = group_amount(asset_summary, classifications)
-        if abs(amount) > 0.005:
-            note_definitions.append((str(len(note_definitions) + 1), label, classifications))
-
-    # P&L notes are displayed first in the P&L, so provide their detailed composition too.
-    pnl_note_definitions = [
-        ("1", "Revenue from Operations", ["Revenue from Operations"]),
-        ("2", "Other Income", ["Other Income"]),
-    ]
-    pnl_note_no = 3
-    for head in pnl_order:
-        if abs(amount_from_summary(expense_summary, head, "expense")) > 0.005:
-            pnl_note_definitions.append((str(pnl_note_no), head, [head]))
-            pnl_note_no += 1
-    pnl_note_definitions.append((str(pnl_note_no), "Tax Expense", ["Tax Expense"]))
-
-    def render_note_table(note_no, title, classifications):
-        subset = results_df[results_df["Classification"].isin(classifications)].copy()
-        if not len(subset):
-            return
-        rows = []
-        for _, r in subset.iterrows():
-            net = float(r["Credit"] - r["Debit"]) if r["Classification"] in (APPROVED_INCOME_HEADS | APPROVED_LIABILITY_HEADS | APPROVED_EQUITY_HEADS) else float(r["Debit"] - r["Credit"])
-            rows.append({"Account": r["Account"], "Amount": net})
-        total = sum(r["Amount"] for r in rows)
-        st.markdown(f"**Note {note_no} — {title}**")
-        note_df = pd.DataFrame(rows)
-        note_df["Amount ₹"] = note_df["Amount"].map(indian_currency)
-        note_df = note_df[["Account", "Amount ₹"]]
-        st.dataframe(note_df, width="stretch", hide_index=True)
-        st.markdown(f"**Total — {indian_currency(total)}**")
-
-    for note_no, title, classifications in pnl_note_definitions:
-        render_note_table(note_no, title, classifications)
-    for note_no, title, classifications in note_definitions:
-        render_note_table(note_no, title, classifications)
-
-    # -----------------------------------------------------
-    # PRESENTATION NOTES
-    # -----------------------------------------------------
-
-    st.divider()
-    st.markdown("## 📝 Presentation Notes")
-
-    presentation_notes = []
-    if "Investments" in results_df["Classification"].values:
-        presentation_notes.append(
-            "Investments are displayed under Non-current Investments by default. Current/non-current classification should be confirmed when the Trial Balance does not provide the required facts."
-        )
-    if "Provisions" in results_df["Classification"].values:
-        presentation_notes.append(
-            "Provisions are displayed under Short-term Provisions by default because the current classification engine does not yet capture a separate long-term provision head."
-        )
-    if "Capital Account" in results_df["Classification"].values:
-        presentation_notes.append(
-            "Capital Account is presented within Shareholders' Funds / Other Equity for this Schedule III-style layout."
-        )
-    if not presentation_notes:
-        presentation_notes.append(
-            "No additional Schedule III presentation assumptions were detected."
-        )
-    for note in presentation_notes:
-        st.info(f"ℹ️ {note}")
-
-    # 7️⃣ REVIEW & AUDIT INSIGHTS
-    # =====================================================
-
-    st.divider()
-    st.markdown("## 🔎 Review & Audit Insights")
-
-    low_confidence = results_df[
-        pd.to_numeric(
-            results_df["Confidence"],
-            errors="coerce",
-        ).fillna(0) < 0.80
-    ].copy()
-
-    missing_info = results_df[
-        results_df["Missing Information"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .ne("")
-    ].copy()
-
-    unusual_balance_rows = results_df[
-        (
-            results_df["Nature"].isin(
-                {"Liability", "Equity", "Income"}
-            )
-        )
-        &
-        (
-            results_df["Debit"].abs() > 0.01
-        )
-    ].copy()
-
-    insight_cols = st.columns(3)
-
-    with insight_cols[0]:
-        st.metric(
-            "Accounts Reviewed",
-            len(results_df),
-        )
-
-    with insight_cols[1]:
-        st.metric(
-            "Low Confidence",
-            len(low_confidence),
-        )
-
-    with insight_cols[2]:
-        st.metric(
-            "Missing Information",
-            len(missing_info),
-        )
-
-    if len(low_confidence):
-        st.warning(
-            f"{len(low_confidence)} account(s) have confidence below 80%. "
-            "Review these before final use."
-        )
-
-    if len(missing_info):
-        st.info(
-            f"{len(missing_info)} account(s) have missing-information flags."
-        )
-
-    if len(unusual_balance_rows):
-        st.info(
-            f"{len(unusual_balance_rows)} account(s) have debit balances "
-            "despite being classified as liability/equity/income heads. "
-            "These may represent contra or adjustment balances."
-        )
-
-    # =====================================================
-    # 8️⃣ EXPORTS
-    # =====================================================
-
-    st.divider()
-    st.markdown("## 📥 Export Financial Statements")
-
-    st.caption(
-        "Generate an Excel working-paper package and a PDF presentation "
-        "from the current validated results."
-    )
-
-    revenue_ops = amount_from_summary(revenue_summary, "Revenue from Operations", "income")
-    other_income = amount_from_summary(revenue_summary, "Other Income", "income")
-
-    export_pnl_rows = [
-        ("I. Revenue from Operations", revenue_ops),
-        ("II. Other Income", other_income),
-        ("III. Total Revenue", total_revenue),
-    ]
-
-    for head in pnl_order:
-        amount = (
-            float(expense_summary.loc[head, "Net"])
-            if head in expense_summary.index
-            else 0.0
-        )
-        if abs(amount) > 0.005:
-            export_pnl_rows.append(
-                (head, indian_currency(amount))
-            )
-
-    export_pnl_rows.extend([
-        ("Total Expenses", total_expenses),
-        ("Profit Before Tax", profit_before_tax),
-        ("Tax Expense", tax_expense),
-        ("Profit for the Period", profit),
-    ])
-
-    export_bs_rows = [
-        ("I. EQUITY AND LIABILITIES", ""),
-        ("1. Shareholders' Funds", ""),
-        ("Share Capital", indian_currency(share_capital)),
-        ("Reserves and Surplus / Other Equity", indian_currency(other_equity)),
-        ("Total Shareholders' Funds", indian_currency(shareholders_funds)),
-        ("2. Non-current Liabilities", ""),
-    ]
-
-    for label, classifications in non_current_liability_groups:
-        amount = group_amount(liability_summary, classifications)
-        if abs(amount) > 0.005:
-            export_bs_rows.append(
-                (label, amount)
-            )
-
-    export_bs_rows.extend([
-        ("Total Non-current Liabilities",
-         non_current_liability_total),
-        ("3. Current Liabilities", ""),
-    ])
-
-    for label, classifications in current_liability_groups:
-        amount = group_amount(liability_summary, classifications)
-        if abs(amount) > 0.005:
-            export_bs_rows.append(
-                (label, amount)
-            )
-
-    export_bs_rows.extend([
-        ("Total Current Liabilities",
-         current_liability_total),
-        ("Total Equity and Liabilities",
-         total_equity_and_liabilities),
-        ("II. ASSETS", ""),
-        ("1. Non-current Assets", ""),
-    ])
-
-    for label, classifications in non_current_asset_groups:
-        amount = group_amount(asset_summary, classifications)
-        if abs(amount) > 0.005:
-            export_bs_rows.append(
-                (label, amount)
-            )
-
-    export_bs_rows.extend([
-        ("Total Non-current Assets",
-         non_current_asset_total),
-        ("2. Current Assets", ""),
-    ])
-
-    for label, classifications in current_asset_groups:
-        amount = group_amount(asset_summary, classifications)
-        if abs(amount) > 0.005:
-            export_bs_rows.append(
-                (label, amount)
-            )
-
-    export_bs_rows.extend([
-        ("Total Current Assets",
-         current_asset_total),
-        ("Total Assets", total_assets),
-    ])
-
-    # =====================================================
-    # NOTES TO ACCOUNTS
-    # =====================================================
-
-    notes_rows = []
-
-    notes_rows.append((
-        "Basis of preparation",
-        "Financial statements are generated from the uploaded Trial Balance "
-        "using deterministic accounting rules with AI fallback for "
-        "unrecognized accounts."
-    ))
-
-    notes_rows.append((
-        "Schedule III presentation",
-        "The primary statements use a Schedule III-style hierarchy. "
-        "Required statutory notes and disclosures should be reviewed "
-        "before filing."
-    ))
-
-    if len(low_confidence):
-        notes_rows.append((
-            "Low-confidence classifications",
-            f"{len(low_confidence)} account(s) have confidence below 80%."
-        ))
-
-    if len(missing_info):
-        notes_rows.append((
-            "Missing information",
-            f"{len(missing_info)} account(s) contain missing-information flags."
-        ))
-
-    if "Inventories" in results_df["Classification"].values:
-        notes_rows.append((
-            "Inventories",
-            "Inventory balances are presented under Current Assets. "
-            "Opening/closing inventory treatment should be reviewed against "
-            "the entity's accounting policy and adjusted Trial Balance."
-        ))
-
-    if "Borrowings" in results_df["Classification"].values:
-        notes_rows.append((
-            "Borrowings",
-            "Current/non-current presentation depends on contractual "
-            "maturity and repayment terms where those facts are not "
-            "available from the Trial Balance."
-        ))
-
-    notes_rows.append((
-        "Statutory review",
-        "This application is an AI-assisted preparation tool and does not "
-        "replace professional review, applicable accounting standards, "
-        "company-specific disclosures or statutory filing requirements."
-    ))
-
-    # Validation rows are built after the checks below.
-
-
-    # =====================================================
-    # FINAL VALIDATION
-    # =====================================================
-
-    st.divider()
-    st.markdown("<div id='final-validation' class='section-anchor'></div>", unsafe_allow_html=True)
-    st.markdown("## 9️⃣ Final Validation")
-
-    tb_balanced = (
-        abs(difference) < 0.01
-    )
-
-    bs_balanced = (
-        abs(balance_difference) < 0.01
-    )
-
-    approved_classifications = (
-        results_df["Classification"]
-        .isin(APPROVED_HEADS)
-    )
-
-    invalid_classification_count = int(
-        (~approved_classifications).sum()
-    )
-
-    review_count = int(
-        results_df["Ambiguous"]
-        .fillna(True)
-        .sum()
-    )
-
-    numeric_data_ok = (
-        pd.api.types.is_numeric_dtype(
-            results_df["Debit"]
-        )
-        and
-        pd.api.types.is_numeric_dtype(
-            results_df["Credit"]
-        )
-    )
-
-    pnl_reconciles = abs(
-        total_revenue
-        - total_expenses
-        - tax_expense
-        - profit
-    ) < 0.01
-
-    tax_pbt_review_required = (
-        profit_before_tax < -0.01
-        and tax_expense > 0.01
-    )
-
-    validation_checks = [
-        (
-            "Trial Balance balances",
-            tb_balanced,
-        ),
-        (
-            "All account classifications are approved",
-            invalid_classification_count == 0,
-        ),
-        (
-            "Debit and Credit values are numeric",
-            numeric_data_ok,
-        ),
-        (
-            "Profit & Loss reconciles",
-            pnl_reconciles,
-        ),
-        (
-            "Balance Sheet Tally",
-            bs_balanced,
-        ),
-        (
-            "No accounts require manual review",
-            review_count == 0,
-        ),
-    ]
-
-    passed_count = sum(
-        bool(passed)
-        for _, passed in validation_checks
-    )
-
-    st.metric(
-        "Validation Score",
-        f"{passed_count}/{len(validation_checks)} checks passed",
-    )
-
-    validation_cols = st.columns(2)
-
-    for index, (
-        check_name,
-        passed,
-    ) in enumerate(validation_checks):
-
-        with validation_cols[index % 2]:
-
-            if passed:
-
-                st.success(
-                    f"✅ {check_name}"
-                )
 
+    comparative_previous = {}
+    movement_df = pd.DataFrame()
+    if st.session_state.get("comparative_results"):
+        comp = pd.DataFrame(st.session_state["comparative_results"])
+        if len(comp):
+            pg = comp.groupby("Classification")[["Debit","Credit"]].sum(); pg["Net"] = pg["Credit"] - pg["Debit"]
+            comparative_previous = pg["Net"].to_dict()
+            cg = results_df.groupby("Classification")[["Debit","Credit"]].sum(); cg["Net"] = cg["Credit"] - cg["Debit"]
+            rows=[]
+            for head in sorted(set(cg.index)|set(pg.index)):
+                cur=float(cg.loc[head,"Net"]) if head in cg.index else 0.0; prev=float(pg.loc[head,"Net"]) if head in pg.index else 0.0
+                change=cur-prev; pct=None if abs(prev)<.005 else change/abs(prev)*100
+                rows.append({"Classification":head,"Current Period":cur,"Previous Period":prev,"Change":change,"Change %":pct,"Material Movement":bool(pct is not None and abs(pct)>=float(st.session_state.get("materiality_threshold",20)))})
+            movement_df=pd.DataFrame(rows)
+
+    pnl_order=["Cost of Materials Consumed","Purchases","Changes in Inventories","Employee Benefits Expense","Finance Costs","Depreciation & Amortisation","Other Expenses"]
+    def prev_amount(c): return comparative_previous.get(c)
+    pnl_rows=[
+      {"label":"I. Revenue from Operations","kind":"section"},{"label":"Revenue from Operations","note":"1","current":revenue_ops,"previous":prev_amount("Revenue from Operations"),"kind":"indent"},
+      {"label":"II. Other Income","kind":"section"},{"label":"Other Income","note":"2","current":other_income,"previous":prev_amount("Other Income"),"kind":"indent"},
+      {"label":"III. Total Revenue","current":total_revenue,"previous":sum(v for k,v in comparative_previous.items() if k in APPROVED_INCOME_HEADS) if comparative_previous else None,"kind":"total"},
+      {"label":"IV. Expenses","kind":"section"}]
+    note_no=3
+    for h in pnl_order:
+        amt=float(expense_summary.loc[h,"Net"]) if h in expense_summary.index else 0.0
+        if abs(amt)>.005:
+            pnl_rows.append({"label":h,"note":str(note_no),"current":amt,"previous":prev_amount(h),"kind":"indent"}); note_no+=1
+    pnl_rows += [{"label":"Total Expenses","current":total_expenses,"previous":sum(v for k,v in comparative_previous.items() if k in APPROVED_EXPENSE_HEADS and k!="Tax Expense") if comparative_previous else None,"kind":"total"},{"label":"Profit Before Tax","current":pbt,"kind":"subtotal"},{"label":"Tax Expense","note":str(note_no),"current":tax_expense,"previous":prev_amount("Tax Expense"),"kind":"indent"},{"label":"Profit for the Period","current":profit,"kind":"grand-total"}]
+
+    bs_rows=[{"label":"I. EQUITY AND LIABILITIES","kind":"section"},{"label":"1. Shareholders' Funds","kind":"subsection"},{"label":"Share Capital","note":"1","current":share_capital,"previous":prev_amount("Share Capital"),"kind":"indent"},{"label":"Other Equity","note":"2","current":other_equity,"previous":prev_amount("Other Equity") if prev_amount("Other Equity") is not None else prev_amount("Capital Account"),"kind":"indent"},{"label":"2. Non-current Liabilities","kind":"subsection"}]
+    note_no=3
+    for label,classes in ncl:
+        amt=group_amount(liability_summary,classes)
+        if abs(amt)>.005: bs_rows.append({"label":label,"note":str(note_no),"current":amt,"previous":sum(prev_amount(c) or 0 for c in classes) if comparative_previous else None,"kind":"indent"}); note_no+=1
+    bs_rows.append({"label":"3. Current Liabilities","kind":"subsection"})
+    for label,classes in cl:
+        amt=group_amount(liability_summary,classes)
+        if abs(amt)>.005: bs_rows.append({"label":label,"note":str(note_no),"current":amt,"previous":sum(prev_amount(c) or 0 for c in classes) if comparative_previous else None,"kind":"indent"}); note_no+=1
+    bs_rows += [{"label":"Total Equity and Liabilities","current":total_equity_and_liabilities,"kind":"grand-total"},{"label":"II. ASSETS","kind":"section"},{"label":"1. Non-current Assets","kind":"subsection"}]
+    for label,classes in nca:
+        amt=group_amount(asset_summary,classes)
+        if abs(amt)>.005: bs_rows.append({"label":label,"note":str(note_no),"current":amt,"previous":sum(prev_amount(c) or 0 for c in classes) if comparative_previous else None,"kind":"indent"}); note_no+=1
+    bs_rows.append({"label":"2. Current Assets","kind":"subsection"})
+    for label,classes in ca:
+        amt=group_amount(asset_summary,classes)
+        if abs(amt)>.005: bs_rows.append({"label":label,"note":str(note_no),"current":amt,"previous":sum(prev_amount(c) or 0 for c in classes) if comparative_previous else None,"kind":"indent"}); note_no+=1
+    bs_rows.append({"label":"Total Assets","current":total_assets,"kind":"grand-total"})
+
+    notes=[]
+    if "Investments" in results_df["Classification"].values: notes.append(("Investments","Presented under non-current investments by default; confirm current/non-current presentation when required facts are unavailable."))
+    if "Provisions" in results_df["Classification"].values: notes.append(("Provisions","Presented under short-term provisions by default because the current classification engine does not capture a separate long-term provision head."))
+    if "Capital Account" in results_df["Classification"].values: notes.append(("Capital Account","Presented within shareholders' funds / other equity for this Schedule III-style layout."))
+    if not notes: notes.append(("Presentation","No additional Schedule III presentation assumptions were detected."))
+    return locals()
+
+
+def render_statement_table(title, subtitle, rows):
+    parts=[]
+    for r in rows:
+        kind=r.get("kind","line"); label=html_escape(r.get("label","")); note=html_escape(r.get("note","")); cur=r.get("current"); prev=r.get("previous")
+        cur_html=money(cur) if cur is not None else ""; prev_html=money(prev) if prev is not None else "—"
+        parts.append(f'<tr class="{html_escape(kind)}"><td>{label}</td><td class="note">{note}</td><td class="amount">{html_escape(cur_html)}</td><td class="amount">{html_escape(prev_html)}</td></tr>')
+    st.markdown(f'''<div class="statement-card"><div class="statement-head"><div class="statement-title">{html_escape(title)}</div><div class="statement-subtitle">{html_escape(subtitle)}</div></div><table class="statement-table"><thead><tr><th>Particulars</th><th class="note">Note</th><th class="amount">Current Period</th><th class="amount">Previous Period</th></tr></thead><tbody>{''.join(parts)}</tbody></table></div>''', unsafe_allow_html=True)
+
+
+def render_tb_table(df):
+    rows=[]
+    for _,r in df.iterrows():
+        amb=bool(r.get("Ambiguous",False)); conf=float(r.get("Confidence",0) or 0); pct=max(0,min(100,conf*100)); tag="tag-warn" if amb else "tag-good"; label="Review" if amb else "Ready"
+        rows.append(f'''<tr><td>{html_escape(r['Account'])}</td><td class="num">{html_escape(money(r['Debit']))}</td><td class="num">{html_escape(money(r['Credit']))}</td><td><span class="tag">{html_escape(r['Nature'])}</span></td><td><span class="tag">{html_escape(r['Classification'])}</span></td><td class="center"><span class="tag {tag}">{label}</span></td><td class="center"><span class="conf-track"><span class="conf-fill" style="width:{pct:.0f}%"></span></span>{conf:.0%}</td></tr>''')
+    st.markdown(f'''<div class="table-shell"><table class="acc-table"><thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th><th>Nature</th><th>Classification</th><th class="center">Status</th><th class="center">Confidence</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>''', unsafe_allow_html=True)
+
+
+def build_export_artifacts(results_df, fin):
+    validation_rows = validation_check_rows(results_df, fin)
+    pnl_export=[]
+    for r in fin["pnl_rows"]:
+        pnl_export.append((r["label"], r.get("current") if r.get("current") is not None else ""))
+    bs_export=[]
+    for r in fin["bs_rows"]:
+        bs_export.append((r["label"], r.get("current") if r.get("current") is not None else ""))
+    notes_rows=fin["notes"]
+    excel=make_schedule3_excel(st.session_state["company_name"],st.session_state["cin"],st.session_state["reporting_date"],results_df,pnl_export,bs_export,validation_rows,notes_rows)
+    pdf=make_schedule3_pdf(st.session_state["company_name"],st.session_state["cin"],st.session_state["reporting_date"],pnl_export,bs_export,validation_rows,notes_rows)
+    return excel,pdf,validation_rows
+
+
+def validation_check_rows(results_df, fin):
+    # Recompute the uploaded TB totals from classified rows; this is the same accounting validation basis as the original app.
+    debit=float(results_df["Debit"].sum()); credit=float(results_df["Credit"].sum()); tb_bal=abs(debit-credit)<.01
+    invalid=int((~results_df["Classification"].isin(APPROVED_HEADS)).sum())
+    numeric_ok=pd.api.types.is_numeric_dtype(results_df["Debit"]) and pd.api.types.is_numeric_dtype(results_df["Credit"])
+    pnl_reconciles=abs(fin["total_revenue"]-fin["total_expenses"]-fin["tax_expense"]-fin["profit"])<.01
+    bs_bal=abs(fin["balance_difference"])<.01
+    review=int(results_df["Ambiguous"].fillna(True).sum())
+    return [("Trial Balance balances","PASS" if tb_bal else "REVIEW",f"Debit {money(debit)} · Credit {money(credit)}"),("All account classifications are approved","PASS" if invalid==0 else "REVIEW",f"{invalid} unapproved classification(s)"),("Debit and Credit values are numeric","PASS" if numeric_ok else "REVIEW","Numeric validation"),("Profit & Loss reconciles","PASS" if pnl_reconciles else "REVIEW",f"Profit {money(fin['profit'])}"),("Balance Sheet Tally","PASS" if bs_bal else "REVIEW",f"Difference {money(fin['balance_difference'])}"),("No accounts require manual review","PASS" if review==0 else "REVIEW",f"{review} account(s) flagged")]
+
+# -----------------------------
+# Sidebar + topbar
+# -----------------------------
+render_nav_sidebar()
+render_topbar()
+
+# -----------------------------
+# HOME / DASHBOARD
+# -----------------------------
+
+def render_home():
+    prepared=bool(st.session_state.get("prepared") and st.session_state.get("results"))
+    if not prepared:
+        st.markdown('''<div class="hero"><div class="hero-content"><div class="page-eyebrow">AI FINANCIAL WORKSPACE</div><div class="landing-title">From Trial Balance to <span>decision-ready statements.</span></div><div class="landing-copy">Upload your Trial Balance, classify accounts with deterministic rules plus AI fallback, review exceptions, validate the numbers and generate professional financial statements — all in one workspace.</div></div></div>''', unsafe_allow_html=True)
+        a,b,c=st.columns(3)
+        for col,title,copy in [(a,"1 · Upload","Bring your Excel or CSV Trial Balance into a clean workspace."),(b,"2 · Review","See classifications, confidence and exceptions before anything is final."),(c,"3 · Report","Generate Schedule III-style statements, validation and exports.")]:
+            with col: st.markdown(f'<div class="card"><div class="card-title">{title}</div><div class="card-caption">{copy}</div></div>',unsafe_allow_html=True)
+        st.markdown('<div class="section-head"><div><div class="section-title">Start your workspace</div><div class="section-caption">Nothing is processed until you choose a file and prepare the statements.</div></div></div>',unsafe_allow_html=True)
+        render_input_panel()
+        return
+    results_df=apply_overrides(pd.DataFrame(st.session_state["results"]))
+    st.session_state["results"]=results_df.to_dict("records")
+    fin=compute_financials(results_df)
+    tb_debit=float(results_df["Debit"].sum()); tb_credit=float(results_df["Credit"].sum()); diff=tb_debit-tb_credit
+    review=int(results_df["Ambiguous"].fillna(True).sum())
+    st.markdown(f'<div class="hero"><div class="hero-content"><div class="page-eyebrow">ACCOUNTRA INTELLIGENCE · OVERVIEW</div><div class="page-title">Good afternoon, {html_escape(st.session_state["company_name"])}.</div><div class="page-subtitle">Your books are prepared for {html_escape(financial_year_label(st.session_state["reporting_date"]))}. Here is what deserves your attention.</div></div></div>',unsafe_allow_html=True)
+    status="Balanced" if abs(diff)<.01 else "Needs attention"
+    status_cls="status-good" if abs(diff)<.01 else "status-bad"
+    st.markdown('<div class="kpi-grid">'+''.join([metric_card("Total Assets",money(fin["total_assets"]),"Balance Sheet"),metric_card("Total Liabilities",money(fin["total_liabilities"]),"Balance Sheet"),metric_card("Total Equity",money(fin["total_equity"]),"Before current profit"),metric_card("Net Profit",money(fin["profit"]),"Profit for the period"),metric_card("Trial Balance",status,f"{review} review item(s)")])+"</div>",unsafe_allow_html=True)
+    left,right=st.columns([1.55,1])
+    with left:
+        st.markdown('<div class="card"><div class="card-title">Financial overview</div><div class="card-caption">Current-period composition from the validated classifications.</div>',unsafe_allow_html=True)
+        values=[("Revenue",fin["total_revenue"]),("Expenses",fin["total_expenses"]),("Assets",fin["total_assets"]),("Liabilities",fin["total_liabilities"]),("Equity",fin["total_equity"])]
+        maxv=max([abs(v) for _,v in values] or [1])
+        bars=''.join([f'<div style="display:grid;grid-template-columns:110px 1fr 105px;gap:.7rem;align-items:center;margin:.75rem 0"><div style="font-size:.72rem;color:var(--acc-muted);font-weight:750">{html_escape(k)}</div><div style="height:9px;background:#eceef5;border-radius:99px;overflow:hidden"><div style="height:100%;width:{abs(v)/maxv*100:.1f}%;background:linear-gradient(90deg,#5b5ce2,#16a6b6);border-radius:99px"></div></div><div style="text-align:right;font-size:.72rem;font-weight:800;color:var(--acc-ink)">{html_escape(money(v))}</div></div>' for k,v in values])
+        st.markdown(bars+'</div>',unsafe_allow_html=True)
+    with right:
+        st.markdown('<div class="card"><div class="card-title">Accountra Intelligence</div><div class="card-caption">What deserves your attention right now.</div>',unsafe_allow_html=True)
+        if abs(diff)<.01: st.markdown(insight_card("Trial Balance is balanced","Debit and credit totals agree. The core input check passed.","good"),unsafe_allow_html=True)
+        else: st.markdown(insight_card("Trial Balance needs review",f"The difference is {money(diff)}. Review the uploaded ledger before relying on statements.","danger"),unsafe_allow_html=True)
+        if review: st.markdown(insight_card(f"{review} account(s) need review","Open AI Review to inspect confidence, reasons and manual overrides.","warn"),unsafe_allow_html=True)
+        else: st.markdown(insight_card("Classification review is clear","No accounts are currently flagged for manual review.","good"),unsafe_allow_html=True)
+        if abs(fin["balance_difference"])<.01: st.markdown(insight_card("Balance Sheet tallies","Assets equal equity and liabilities after the current-period profit bridge.","good"),unsafe_allow_html=True)
+        else: st.markdown(insight_card("Balance Sheet does not tally",f"Difference: {money(fin['balance_difference'])}. Review classifications and equity treatment.","danger"),unsafe_allow_html=True)
+        st.markdown('</div>',unsafe_allow_html=True)
+    st.markdown('<div class="section-head"><div><div class="section-title">Quick actions</div><div class="section-caption">Jump directly into the part of the workflow you need.</div></div></div>',unsafe_allow_html=True)
+    qa=st.columns(4)
+    for col,key,title,sub in [(qa[0],"trial_balance","Trial Balance","Search and inspect accounts"),(qa[1],"ai_review","AI Review","Resolve exceptions"),(qa[2],"statements","Statements","Review P&L and Balance Sheet"),(qa[3],"reports","Reports","Export working papers")]:
+        with col:
+            if st.button(title,key=f"qa_{key}",use_container_width=True): st.session_state["app_page"]=key; st.rerun()
+            st.caption(sub)
+
+# -----------------------------
+# Input panel
+# -----------------------------
+
+def render_input_panel():
+    left,right=st.columns([1.5,1])
+    with left:
+        st.markdown('<div class="card"><div class="card-title">Upload your Trial Balance</div><div class="card-caption">Excel, XLS or CSV · Account, Debit and Credit columns.</div>',unsafe_allow_html=True)
+        if "reset_nonce" not in st.session_state: st.session_state["reset_nonce"]=0
+        uploaded=st.file_uploader("Choose Trial Balance",type=["xlsx","xls","csv"],key=f"trial_balance_upload_v5_{st.session_state['reset_nonce']}",label_visibility="collapsed")
+        st.markdown('</div>',unsafe_allow_html=True)
+    with right:
+        st.markdown('<div class="card"><div class="card-title">Report context</div><div class="card-caption">These details flow into the financial statements and exports.</div>',unsafe_allow_html=True)
+        st.text_input("Company / Entity Name",key="company_name")
+        st.text_input("CIN / Registration No. (optional)",key="cin")
+        st.date_input("Reporting Date",key="reporting_date")
+        st.markdown('</div>',unsafe_allow_html=True)
+    if uploaded:
+        df,error=normalize_tb(uploaded)
+        if error: st.error(error); return
+        if uploaded.size>15*1024*1024: st.error("File is larger than 15 MB."); return
+        token=f"tb_{uploaded.name}_{uploaded.size}"
+        if st.session_state.get("file_token")!=token:
+            st.session_state["file_token"]=token; st.session_state["prepared"]=False; st.session_state.pop("results",None); st.session_state.pop("comparative_results",None)
+        st.session_state["source_df"]=df.to_dict("records")
+        st.success(f"{uploaded.name} loaded · {len(df):,} accounts")
+        c1,c2,c3=st.columns(3)
+        c1.metric("Accounts",f"{len(df):,}"); c2.metric("Debit",money(df["Debit"].sum())); c3.metric("Credit",money(df["Credit"].sum()))
+        diff=float(df["Debit"].sum()-df["Credit"].sum())
+        if abs(diff)<.01: st.success("Trial Balance is balanced.")
+        else: st.error(f"Trial Balance is not balanced · Difference {money(diff)}")
+        with st.expander("Preview uploaded accounts",expanded=False): st.dataframe(df,use_container_width=True,hide_index=True)
+        comparative=st.file_uploader("Previous-year Trial Balance (optional)",type=["xlsx","xls","csv"],key=f"comparative_trial_balance_upload_v5_{st.session_state['reset_nonce']}")
+        comp_df=None
+        if comparative:
+            comp_df,_=normalize_tb(comparative)
+            if comp_df is not None: st.session_state["comparative_source_df"]=comp_df.to_dict("records")
+        can_prepare=abs(diff)<.01
+        if st.button("Prepare financial workspace",type="primary",use_container_width=True,key="prepare_v5"):
+            if not can_prepare: st.error("Cannot prepare financial statements until the Trial Balance balances.")
             else:
+                with st.spinner("Preparing your accounting workspace…"):
+                    res=prepare_classifications(df,comp_df)
+                st.session_state["results"]=res.to_dict("records"); st.session_state["prepared"]=True; st.session_state["app_page"]="home"; st.rerun()
 
-                st.warning(
-                    f"⚠️ {check_name}"
-                )
+# -----------------------------
+# Trial Balance page
+# -----------------------------
 
-    if invalid_classification_count > 0:
+def render_trial_balance():
+    page_header("WORKSPACE","Trial Balance","Inspect the source accounts, balances and classifications in one high-density workspace.")
+    if not st.session_state.get("prepared"):
+        render_input_panel(); return
+    df=apply_overrides(pd.DataFrame(st.session_state["results"]))
+    st.session_state["results"]=df.to_dict("records")
+    q=st.text_input("Search accounts",placeholder="Search account name…",key="tb_search")
+    f1,f2,f3=st.columns([1,1,1.2])
+    with f1: nature=st.selectbox("Nature",["All"]+sorted(df["Nature"].dropna().unique().tolist()),key="tb_nature")
+    with f2: cls=st.selectbox("Classification",["All"]+sorted(df["Classification"].dropna().unique().tolist()),key="tb_class")
+    with f3: sort=st.selectbox("Sort by",["Account","Debit","Credit","Confidence"],key="tb_sort")
+    view=df.copy()
+    if q: view=view[view["Account"].astype(str).str.contains(q,case=False,na=False)]
+    if nature!="All": view=view[view["Nature"]==nature]
+    if cls!="All": view=view[view["Classification"]==cls]
+    view=view.sort_values(sort,ascending=(sort=="Account"),na_position="last")
+    st.caption(f"Showing {len(view):,} of {len(df):,} accounts")
+    render_tb_table(view)
 
-        st.error(
-            f"{invalid_classification_count} account(s) "
-            "have an unapproved classification."
-        )
+# -----------------------------
+# AI Review page
+# -----------------------------
 
-    if tax_pbt_review_required:
-        st.warning(
-            "PBT is negative while Tax Expense is present. "
-            "Tax Expense is correctly shown below PBT, but review whether "
-            "the amount represents deferred tax or another applicable tax adjustment."
-        )
+def render_ai_review():
+    page_header("ACCOUNTRA INTELLIGENCE","AI Review","A focused exception queue for ambiguous, low-confidence or incomplete classifications.")
+    if not st.session_state.get("prepared"): st.info("Prepare a Trial Balance first."); return
+    df=apply_overrides(pd.DataFrame(st.session_state["results"]))
+    st.session_state["results"]=df.to_dict("records")
+    review=df[df["Ambiguous"].fillna(True) | (pd.to_numeric(df["Confidence"],errors="coerce").fillna(0)<.80)].copy()
+    c1,c2,c3=st.columns(3)
+    c1.metric("Accounts needing review",f"{len(review):,}"); c2.metric("High confidence",f"{int((pd.to_numeric(df['Confidence'],errors='coerce')>=.80).sum()):,}"); c3.metric("Missing information",f"{int(df['Missing Information'].fillna('').astype(str).str.strip().ne('').sum()):,}")
+    if not len(review):
+        st.markdown(insight_card("All clear","No accounts are currently below the review threshold.","good"),unsafe_allow_html=True); return
+    for idx,(_,row) in enumerate(review.iterrows()):
+        conf=float(row.get("Confidence",0) or 0); tone="danger" if conf<.5 else "warn"
+        st.markdown(f'''<div class="card" style="margin:.7rem 0"><div style="display:flex;justify-content:space-between;gap:1rem"><div><div class="card-title">{html_escape(row['Account'])}</div><div class="card-caption">{html_escape(row['Nature'])} · {html_escape(row['Classification'])}</div></div><span class="tag tag-warn">{conf:.0%} confidence</span></div><div style="margin-top:.7rem;font-size:.78rem;color:var(--acc-muted)"><strong style="color:var(--acc-ink)">Why:</strong> {html_escape(row['Reason'])}</div><div style="margin-top:.35rem;font-size:.75rem;color:var(--acc-muted)"><strong style="color:var(--acc-ink)">Missing information:</strong> {html_escape(row['Missing Information'] or 'None specified')}</div></div>''',unsafe_allow_html=True)
+        nature=row["Nature"]
+        if nature=="Liability": options=["Current Borrowings","Non-current Borrowings"] if row["Classification"]=="Borrowings" else ["Trade Payables","Provisions","Other Current Liabilities","Other Non-current Liabilities"]
+        elif nature=="Asset": options=sorted(APPROVED_ASSET_HEADS)
+        elif nature=="Equity": options=sorted(APPROVED_EQUITY_HEADS)
+        elif nature=="Income": options=sorted(APPROVED_INCOME_HEADS)
+        elif nature=="Expense": options=sorted(APPROVED_EXPENSE_HEADS)
+        else: options=[]
+        if options:
+            c1,c2=st.columns([2,1])
+            with c1: newc=st.selectbox("Change classification",options,index=options.index(row["Classification"]) if row["Classification"] in options else 0,key=f"review_class_{idx}_{row['Account']}")
+            with c2:
+                if st.button("Apply",key=f"review_apply_{idx}",use_container_width=True):
+                    st.session_state[f"override_{row['Account']}"]=newc; st.rerun()
 
-    if review_count > 0:
+# -----------------------------
+# Statements page
+# -----------------------------
 
-        st.info(
-            f"{review_count} account(s) still require manual review. "
-            "The statements can be viewed, but the validation is "
-            "not fully complete."
-        )
+def render_statements():
+    page_header("REPORTING","Financial Statements","Schedule III-style Profit & Loss and Balance Sheet presentation from the validated classifications.")
+    if not st.session_state.get("prepared"): st.info("Prepare a Trial Balance first."); return
+    df=apply_overrides(pd.DataFrame(st.session_state["results"])); st.session_state["results"]=df.to_dict("records"); fin=compute_financials(df)
+    a,b=st.columns(2)
+    with a: st.markdown(metric_card("Profit Before Tax",money(fin["pbt"]),"Current period"),unsafe_allow_html=True)
+    with b: st.markdown(metric_card("Balance Sheet Difference",money(fin["balance_difference"]),"Should be ₹0"),unsafe_allow_html=True)
+    st.markdown('<div class="section-head"><div><div class="section-title">Statement of Profit & Loss</div><div class="section-caption">Current period with previous period where supplied.</div></div></div>',unsafe_allow_html=True)
+    render_statement_table("STATEMENT OF PROFIT & LOSS",f"For the period ended {st.session_state['reporting_date'].strftime('%d %B %Y')}",fin["pnl_rows"])
+    st.markdown('<div class="section-head"><div><div class="section-title">Balance Sheet</div><div class="section-caption">Equity and liabilities compared with assets.</div></div></div>',unsafe_allow_html=True)
+    render_statement_table("BALANCE SHEET",f"As at {st.session_state['reporting_date'].strftime('%d %B %Y')}",fin["bs_rows"])
+    if abs(fin["balance_difference"])<.01: st.success("Balance Sheet tallies.")
+    else: st.error(f"Balance Sheet does not tally · Difference {money(fin['balance_difference'])}")
+    st.markdown('<div class="section-head"><div><div class="section-title">Notes to Accounts</div><div class="section-caption">Presentation assumptions and account composition.</div></div></div>',unsafe_allow_html=True)
+    for note,detail in fin["notes"]: st.markdown(insight_card(note,detail,"warn"),unsafe_allow_html=True)
+    if len(fin["movement_df"]):
+        st.markdown('<div class="section-head"><div><div class="section-title">Comparative movement</div><div class="section-caption">Material movement threshold applied from Report Settings.</div></div></div>',unsafe_allow_html=True)
+        mv=fin["movement_df"].copy(); mv["Current Period"]=mv["Current Period"].map(money); mv["Previous Period"]=mv["Previous Period"].map(money); mv["Change"]=mv["Change"].map(money); mv["Change %"]=mv["Change %"].map(lambda x:"—" if pd.isna(x) else f"{x:+.1f}%"); st.dataframe(mv,use_container_width=True,hide_index=True)
 
-    all_core_checks_pass = (
-        tb_balanced
-        and bs_balanced
-        and pnl_reconciles
-        and invalid_classification_count == 0
-        and numeric_data_ok
-    )
+# -----------------------------
+# Validation page
+# -----------------------------
 
-    if all_core_checks_pass and review_count == 0:
+def render_validation():
+    page_header("CONTROL CENTER","Validation","A single place to verify the Trial Balance, classification quality, P&L reconciliation and Balance Sheet tally.")
+    if not st.session_state.get("prepared"): st.info("Prepare a Trial Balance first."); return
+    df=apply_overrides(pd.DataFrame(st.session_state["results"])); st.session_state["results"]=df.to_dict("records"); fin=compute_financials(df); checks=validation_check_rows(df,fin)
+    passed=sum(1 for _,s,_ in checks if s=="PASS")
+    tone="good" if passed==len(checks) else "warn"
+    st.markdown(f'<div class="hero"><div class="hero-content"><div class="page-eyebrow">VALIDATION SCORE</div><div class="page-title">{passed}/{len(checks)} checks passed</div><div class="page-subtitle">Core accounting controls are shown below. Review any item marked REVIEW before relying on the generated reports.</div></div></div>',unsafe_allow_html=True)
+    for name,status,detail in checks:
+        cls="status-good" if status=="PASS" else "status-warn"
+        st.markdown(f'<div class="check"><div><div class="check-name">{html_escape(name)}</div><div class="check-detail">{html_escape(detail)}</div></div><span class="status-pill {cls}">{html_escape(status)}</span></div>',unsafe_allow_html=True)
+    if fin["pbt"]<0 and fin["tax_expense"]>0: st.warning("PBT is negative while tax expense is present. Review whether the tax amount represents deferred tax or another applicable adjustment.")
 
-        st.success(
-            "🎉 Financial statements passed all validation checks."
-        )
+# -----------------------------
+# Reports page
+# -----------------------------
 
-    elif all_core_checks_pass:
+def render_reports():
+    page_header("DELIVERABLES","Reports & Export","Download the working paper and financial statements after reviewing the validation center.")
+    if not st.session_state.get("prepared"): st.info("Prepare a Trial Balance first."); return
+    df=apply_overrides(pd.DataFrame(st.session_state["results"])); st.session_state["results"]=df.to_dict("records"); fin=compute_financials(df)
+    excel,pdf,checks=build_export_artifacts(df,fin)
+    safe=re.sub(r"[^A-Za-z0-9_-]+","_",st.session_state["company_name"].strip() or "Accountra").strip("_")
+    a,b=st.columns(2)
+    with a:
+        st.markdown('<div class="card report-card"><div><div class="report-icon">X</div><div class="card-title" style="margin-top:.7rem">Excel working paper</div><div class="card-caption">Classified Trial Balance, P&L, Balance Sheet, validation and notes.</div></div></div>',unsafe_allow_html=True)
+        st.download_button("Download Excel",data=excel,file_name=f"{safe}_Schedule_III_Working_Paper.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",use_container_width=True,key="report_excel_v5")
+    with b:
+        st.markdown('<div class="card report-card"><div><div class="report-icon">PDF</div><div class="card-title" style="margin-top:.7rem">PDF financial statements</div><div class="card-caption">Presentation-ready P&L, Balance Sheet, validation and notes.</div></div></div>',unsafe_allow_html=True)
+        st.download_button("Download PDF",data=pdf,file_name=f"{safe}_Financial_Statements.pdf",mime="application/pdf",use_container_width=True,key="report_pdf_v5")
+    st.markdown('<div class="section-head"><div><div class="section-title">Export readiness</div><div class="section-caption">Reports reflect the current validated session state.</div></div></div>',unsafe_allow_html=True)
+    if all(s=="PASS" for _,s,_ in checks): st.success("All validation checks passed. Reports are ready for review.")
+    else: st.warning("Reports are available, but one or more validation checks require attention.")
 
-        st.warning(
-            "Financial statements balance, but manual review "
-            "is still pending."
-        )
+# -----------------------------
+# Settings page
+# -----------------------------
 
+def render_settings():
+    page_header("MANAGE","Report Settings","Control the entity details and comparative review threshold used throughout the workspace.")
+    st.text_input("Company / Entity Name",key="company_name")
+    st.text_input("CIN / Registration No. (optional)",key="cin")
+    st.date_input("Reporting Date",key="reporting_date")
+    st.number_input("Comparative movement review threshold (%)",min_value=1.0,max_value=100.0,step=5.0,key="materiality_threshold")
+    st.caption(f"Financial year: {financial_year_label(st.session_state['reporting_date'])}")
+    st.markdown('<div class="section-head"><div><div class="section-title">Session controls</div><div class="section-caption">Reset removes uploaded and generated accounting state while keeping these report settings.</div></div></div>',unsafe_allow_html=True)
+    if st.button("Reset accounting workspace",type="secondary",use_container_width=False,key="settings_reset"):
+        clear_accounting_session(); st.session_state["app_page"]="home"; st.rerun()
 
-    # =====================================================
-    # BUILD EXPORT VALIDATION DATA
-    # =====================================================
+# -----------------------------
+# Route — exactly one workspace
+# -----------------------------
 
-    validation_rows = []
+page=st.session_state.get("app_page","home")
+if page=="home": render_home()
+elif page=="trial_balance": render_trial_balance()
+elif page=="ai_review": render_ai_review()
+elif page=="statements": render_statements()
+elif page=="validation": render_validation()
+elif page=="reports": render_reports()
+elif page=="settings": render_settings()
+else:
+    st.session_state["app_page"]="home"; st.rerun()
 
-    for check_name, passed in validation_checks:
-        validation_rows.append(
-            (
-                check_name,
-                "PASS" if passed else "REVIEW",
-                "Passed" if passed else "Requires attention",
-            )
-        )
-
-    # =====================================================
-    # BUILD / STORE EXPORT ARTIFACTS ONCE PER PREPARED STATE
-    # =====================================================
-    # Keep generated files in session state and render exactly one pair
-    # of download widgets with app-unique keys. This avoids Streamlit
-    # element-ID collisions on workbook-specific rerun paths.
-
-    export_signature = hashlib.sha256(
-        (
-            f"{file_token}|{company_name}|{cin}|{reporting_date}|"
-            f"{len(results_df)}|{len(export_pnl_rows)}|{len(export_bs_rows)}|"
-            f"{len(validation_rows)}"
-        ).encode("utf-8")
-    ).hexdigest()
-
-    if st.session_state.get("export_signature") != export_signature:
-        st.session_state["export_excel_bytes"] = make_schedule3_excel(
-            company_name=company_name,
-            cin=cin,
-            reporting_date=reporting_date,
-            results_df=results_df,
-            pnl_rows=export_pnl_rows,
-            bs_rows=export_bs_rows,
-            validation_rows=validation_rows,
-            notes_rows=notes_rows,
-        )
-
-        st.session_state["export_pdf_bytes"] = make_schedule3_pdf(
-            company_name=company_name,
-            cin=cin,
-            reporting_date=reporting_date,
-            pnl_rows=export_pnl_rows,
-            bs_rows=export_bs_rows,
-            validation_rows=validation_rows,
-            notes_rows=notes_rows,
-        )
-
-        st.session_state["export_signature"] = export_signature
-
-    excel_bytes = st.session_state.get("export_excel_bytes")
-    pdf_bytes = st.session_state.get("export_pdf_bytes")
-
-    if excel_bytes is None or pdf_bytes is None:
-        st.error(
-            "Export files could not be prepared. Please use "
-            "Remove file & reset, then prepare the statements again."
-        )
-        st.stop()
-
-    st.divider()
-    st.markdown("<div id='reports' class='section-anchor'></div>", unsafe_allow_html=True)
-
-    export_col1, export_col2 = st.columns(2)
-
-    safe_company = re.sub(
-        r"[^A-Za-z0-9_-]+",
-        "_",
-        company_name.strip() or "AccountingAI"
-    ).strip("_")
-
-    # -----------------------------------------------------
-    # DOWNLOAD LINKS
-    # -----------------------------------------------------
-    # Do NOT use st.download_button here. Streamlit was registering the
-    # export widget more than once on this workbook's rerun path even
-    # though the source contains one call. Plain HTML download links
-    # have no Streamlit widget key, so this collision is eliminated.
-    excel_filename = f"{safe_company}_Schedule_III_Working_Paper.xlsx"
-    pdf_filename = f"{safe_company}_Financial_Statements.pdf"
-
-    excel_b64 = base64.b64encode(excel_bytes).decode("ascii")
-    pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
-
-    excel_href = (
-        "data:application/vnd.openxmlformats-officedocument."
-        "spreadsheetml.sheet;base64,"
-        + excel_b64
-    )
-    pdf_href = "data:application/pdf;base64," + pdf_b64
-
-    with export_col1:
-        st.markdown(
-            f'<a href="{excel_href}" download="{excel_filename}" '
-            'style="display:block;text-align:center;text-decoration:none;'
-            'background:linear-gradient(135deg,#5b5cf0,#4f46e5);color:white;padding:0.72rem 1rem;'
-            'border-radius:11px;font-weight:760;">'
-            '📊 Download Excel Working Paper</a>',
-            unsafe_allow_html=True,
-        )
-
-    with export_col2:
-        st.markdown(
-            f'<a href="{pdf_href}" download="{pdf_filename}" '
-            'style="display:block;text-align:center;text-decoration:none;'
-            'background:linear-gradient(135deg,#5b5cf0,#4f46e5);color:white;padding:0.72rem 1rem;'
-            'border-radius:11px;font-weight:760;">'
-            '📄 Download PDF Financial Statements</a>',
-            unsafe_allow_html=True,
-        )
-
-
-    # =====================================================
-    # FOOTER
-    # =====================================================
-
-    st.divider()
-
-    st.caption(
-        "Accountra • Schedule III-style financial statement "
-        "presentation • Review all classifications and required "
-        "disclosures before using statements for statutory filing."
-    )
-
-# =====================================================
-# CREATOR CREDIT
-# =====================================================
-
-st.markdown(
-    f'<div style="text-align:center;font-size:.78rem;opacity:.52;margin-top:2rem;margin-bottom:.8rem;">Built by {CREATOR_NAME} • Accountra</div>',
-    unsafe_allow_html=True,
-)
-
-# =====================================================
-# FEEDBACK & BUG REPORT
-# =========================================================
-
-st.divider()
-with st.expander("💬 Feedback & Bug Report", expanded=False):
-    st.caption(
-        "Help us improve Accountra. Tell us what worked, what didn't, "
-        "or what you would like to see next."
-    )
-
-    feedback_type = st.radio(
-        "What would you like to send?",
-        ["💬 Feedback", "🐛 Report a Bug"],
-        horizontal=True,
-        key="feedback_type",
-    )
-
-    with st.form("feedback_form"):
-        feedback_message = st.text_area(
-            "Your message",
-            placeholder=(
-                "Tell us what happened, what you expected, or what you would like us to improve..."
-            ),
-            height=120,
-            key="feedback_message",
-        )
-
-        feedback_email = st.text_input(
-            "Email (optional)",
-            placeholder="you@example.com",
-            key="feedback_email",
-        )
-
-        submitted = st.form_submit_button(
-            "Send Feedback",
-            type="primary",
-            use_container_width=True,
-        )
-
-        if submitted:
-            if feedback_message.strip():
-                st.session_state["feedback_submitted"] = True
-                st.session_state["feedback_last_type"] = feedback_type
-                st.session_state["feedback_last_message"] = feedback_message.strip()
-                st.success(
-                    "Thanks! Your feedback was recorded for this session. "
-                    "We'll connect a persistent feedback inbox before public launch."
-                )
-            else:
-                st.warning("Please enter a message before submitting.")
-
-# =========================================================
+st.markdown('<div style="text-align:center;color:var(--acc-muted);font-size:.68rem;margin-top:3rem">Accountra · AI-assisted accounting workflow · Review classifications and statutory disclosures before filing.</div>',unsafe_allow_html=True)
