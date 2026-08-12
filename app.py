@@ -3299,9 +3299,81 @@ def v7_relevant_classifications(account, current_classification="", nature="", s
     if any(term in name for term in [
         "interest expense", "interest paid", "interest on loan", "interest on loans",
         "interest on bank loan", "interest on borrowing", "interest on borrowings",
-        "finance cost", "finance costs", "bank charges", "borrowing cost",
+        "finance cost", "finance costs", "finance charge", "finance charges",
+        "bank charges", "borrowing cost", "borrowing costs",
     ]):
         return unique(["Finance Costs"])
+
+    if any(term in name for term in [
+        "sales", "sale of goods", "revenue", "turnover", "service income", "service revenue",
+        "consulting income", "consulting revenue", "operating income", "royalty income",
+        "interest received", "dividend income", "rent received", "gain on sale", "other income",
+    ]) or nature == "income" or current in APPROVED_INCOME_HEADS:
+        return unique(["Revenue from Operations", "Other Income"])
+
+    if any(term in name for term in ["income tax", "tax expense", "current tax"]):
+        return unique(["Tax Expense"])
+
+    if any(term in name for term in ["depreciation", "amortisation", "amortization"]):
+        return unique(["Depreciation & Amortisation"])
+
+    if any(term in name for term in [
+        "salary", "salaries", "wages", "staff welfare", "employee benefit", "bonus expense",
+        "gratuity", "provident fund expense", "pf expense", "esi expense", "direct labour",
+        "direct labor", "recruitment expense", "training expense", "employee medical",
+    ]):
+        return unique(["Employee Benefits Expense"])
+
+    if any(term in name for term in [
+        "inventory", "inventories", "raw material in transit", "finished goods in transit",
+        "packing material inventory", "spare parts inventory", "consumable stores",
+        "fuel inventory", "office supplies inventory", "work in progress",
+    ]):
+        return unique(["Inventories"])
+
+    if any(term in name for term in [
+        "purchase", "purchases", "material", "materials", "import duty", "factory consumables",
+        "subcontracting charges", "freight inward", "carriage inward",
+    ]):
+        return unique(["Purchases", "Cost of Materials Consumed"])
+
+    if any(term in name for term in ["security deposit received", "security deposits received", "lease liability", "lease liabilities"]):
+        return unique(["Other Current Liabilities", "Other Non-current Liabilities"])
+
+    if any(term in name for term in [
+        "security deposit", "security deposits", "deposit paid", "refundable deposit",
+        "preliminary expense", "preliminary expenses", "capital advance",
+    ]):
+        return unique(["Other Current Assets", "Other Non-current Assets"])
+
+    if any(term in name for term in [
+        "employee advance", "employee advances", "travel advance", "travel advances",
+        "loan to employee", "loans to employee", "staff advance", "staff advances",
+    ]):
+        return unique(["Other Current Assets"])
+
+    if any(term in name for term in [
+        "trade receivable", "trade receivables", "accounts receivable", "sundry debtor",
+        "debtor", "customer receivable", "intercompany receivable", "refund receivable",
+        "insurance claim receivable",
+    ]):
+        return unique(["Trade Receivables", "Other Current Assets"])
+
+    if any(term in name for term in [
+        "inventory", "inventories", "raw material in transit", "finished goods in transit",
+        "packing material inventory", "spare parts inventory", "consumable stores",
+        "fuel inventory", "office supplies inventory", "work in progress",
+    ]):
+        return unique(["Inventories"])
+
+    if any(term in name for term in [
+        "expense", "expenses", "charge", "charges", "cost", "costs", "loss", "losses",
+        "fee", "fees", "rent", "electricity", "power", "telephone", "internet", "repairs",
+        "advertising", "logistics", "quality control",
+        "research and development", "cloud hosting", "business development", "csr",
+        "carriage outward", "write-down", "write down", "writedown",
+    ]) or nature == "expense" or statement == "profit & loss":
+        return unique(["Other Expenses", "Finance Costs"])
 
     if any(term in name for term in [
         "loan", "loans", "borrowing", "borrowings", "debenture", "debentures",
@@ -3351,39 +3423,8 @@ def v7_relevant_classifications(account, current_classification="", nature="", s
     ]):
         return unique(["Share Capital", "Other Equity", "Capital Account"])
 
-    if any(term in name for term in [
-        "sales", "sale of goods", "revenue", "turnover", "service income", "service revenue",
-        "consulting income", "consulting revenue", "operating income", "royalty income",
-        "interest received", "dividend income", "rent received", "gain on sale",
-    ]):
-        return unique(["Revenue from Operations", "Other Income"])
-
-    if any(term in name for term in ["income tax", "tax expense", "current tax"]):
-        return unique(["Tax Expense"])
-
-    if any(term in name for term in [
-        "interest", "finance cost", "finance costs", "bank charges", "borrowing cost",
-    ]):
-        return unique(["Finance Costs"])
-
-    if any(term in name for term in [
-        "salary", "salaries", "wages", "staff welfare", "employee benefit", "bonus expense",
-        "gratuity", "provident fund expense", "pf expense", "esi expense", "direct labour",
-        "direct labor", "recruitment expense", "training expense", "employee medical",
-    ]):
-        return unique(["Employee Benefits Expense"])
-
-    if any(term in name for term in [
-        "purchase", "purchases", "material", "materials", "import duty", "factory consumables",
-        "subcontracting charges", "freight inward", "carriage inward",
-    ]):
-        return unique(["Purchases", "Cost of Materials Consumed"])
-
     if any(term in name for term in ["opening stock", "opening inventory", "changes in inventories"]):
         return unique(["Changes in Inventories"])
-
-    if any(term in name for term in ["depreciation", "amortisation", "amortization"]):
-        return unique(["Depreciation & Amortisation"])
 
     if nature == "asset":
         return unique(["Other Current Assets", "Other Non-current Assets"])
