@@ -2203,7 +2203,7 @@ st.markdown(f"""
   --a-bg:#f5f7fb;
   --a-surface:#ffffff;
   --a-surface-2:#f8fafc;
-  --a-line:#e5eaf2;
+  --a-line:#e5eaf2; --a-line-strong:#d6ddea; --a-primary-soft:rgba(88,101,242,.08);
   --a-success:#16a34a; --a-warning:#d97706; --a-danger:#dc2626;
   --a-shadow:0 14px 45px rgba(15,23,42,.08);
   --a-radius:20px;
@@ -2230,7 +2230,12 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .hero h1 {{ font-size:clamp(3rem,6vw,5.7rem)!important; line-height:.98!important; letter-spacing:-.055em!important; margin:0!important; max-width:1050px; color:var(--a-ink)!important; }}
 .hero h1 span {{ background:linear-gradient(90deg,var(--a-primary),var(--a-cyan)); -webkit-background-clip:text; background-clip:text; color:transparent; }}
 .hero-copy {{ max-width:790px; margin-top:1.35rem; font-size:1.18rem; line-height:1.75; color:var(--a-muted); }}
-.hero-actions {{ margin-top:2rem; }}
+.hero-actions {{ margin-top:1.35rem; }}
+.hero-actions-copy {{ color:var(--a-ink); font-weight:800; font-size:1rem; }}
+.hero-actions-note {{ color:var(--a-muted); font-size:.86rem; line-height:1.5; margin-top:.35rem; }}
+.hero-proof {{ display:flex; flex-wrap:wrap; gap:.55rem 1rem; margin-top:.8rem; color:var(--a-muted); font-size:.78rem; font-weight:700; }}
+.hero-proof span {{ display:inline-flex; align-items:center; gap:.35rem; }}
+.hero-proof span::before {{ content:"✓"; color:var(--a-success); font-weight:900; }}
 .coming-soon {{ display:inline-flex; margin-top:1.1rem; padding:.55rem .8rem; border:1px solid var(--a-line); border-radius:999px; background:var(--a-surface-2); color:var(--a-muted); font-size:.82rem; font-weight:800; }}
 .back-label {{ padding:.75rem 0; color:var(--a-muted); font-size:.92rem; font-weight:650; }}
 
@@ -2295,6 +2300,41 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .ai-card {{ border:1px solid rgba(88,101,242,.22); background:linear-gradient(135deg,rgba(88,101,242,.08),rgba(6,182,212,.06)); border-radius:18px; padding:1.35rem; }}
 .ai-title {{ font-size:1.2rem; font-weight:900; color:var(--a-ink); }}
 .ai-copy {{ color:var(--a-muted); line-height:1.6; margin-top:.35rem; }}
+.review-hero {{ display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:1rem 0; padding:1.15rem 1.25rem; border:1px solid rgba(245,158,11,.24); border-radius:18px; background:linear-gradient(135deg,rgba(245,158,11,.09),rgba(88,101,242,.045)); }}
+.review-hero-title {{ color:var(--a-ink); font-weight:900; font-size:1.12rem; }}
+.review-hero-copy {{ color:var(--a-muted); margin-top:.3rem; line-height:1.5; font-size:.9rem; }}
+.review-count {{ flex:0 0 auto; min-width:4.6rem; padding:.65rem .75rem; border-radius:14px; background:var(--a-surface); border:1px solid rgba(245,158,11,.24); color:var(--a-warning); text-align:center; font-size:1.55rem; font-weight:900; line-height:1; }}
+.review-count small {{ display:block; margin-top:.3rem; color:var(--a-muted); font-size:.62rem; font-weight:850; text-transform:uppercase; letter-spacing:.06em; }}
+.review-detail {{ margin-top:1rem; padding:1.1rem 1.2rem; border:1px solid var(--a-line); border-radius:16px; background:var(--a-surface); box-shadow:var(--acc-shadow-sm); }}
+.review-detail-grid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:.65rem; margin-top:1rem; }}
+.review-detail-item {{ padding:.7rem .8rem; border-radius:12px; background:var(--a-surface-2); color:var(--a-muted); font-size:.78rem; }}
+.review-detail-item strong {{ display:block; margin-top:.2rem; color:var(--a-ink); font-size:.92rem; }}
+.status-badge {{ display:inline-flex; align-items:center; gap:.35rem; padding:.32rem .55rem; border-radius:999px; font-size:.7rem; font-weight:850; }}
+.status-badge.good {{ color:var(--a-success); background:rgba(22,163,74,.09); border:1px solid rgba(22,163,74,.2); }}
+.status-badge.warn {{ color:var(--a-warning); background:rgba(217,119,6,.09); border:1px solid rgba(217,119,6,.2); }}
+.status-badge.neutral {{ color:var(--a-primary); background:var(--a-primary-soft); border:1px solid rgba(88,101,242,.18); }}
+.statement-summary {{ display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; margin:1rem 0 1.2rem; }}
+.statement-summary-card {{ padding:.9rem 1rem; border:1px solid var(--a-line); border-radius:14px; background:var(--a-surface); }}
+.statement-summary-label {{ color:var(--a-muted); font-size:.7rem; font-weight:850; text-transform:uppercase; letter-spacing:.06em; }}
+.statement-summary-value {{ margin-top:.35rem; color:var(--a-ink); font-size:1.25rem; font-weight:900; letter-spacing:-.025em; }}
+.validation-hero {{ display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:1rem 0 1.1rem; padding:1.15rem 1.25rem; border:1px solid var(--a-line); border-radius:18px; background:linear-gradient(135deg,var(--a-surface),var(--a-surface-2)); }}
+.validation-score {{ display:flex; align-items:baseline; gap:.45rem; color:var(--a-ink); font-size:2.35rem; font-weight:900; letter-spacing:-.05em; }}
+.validation-score small {{ color:var(--a-muted); font-size:.8rem; font-weight:750; letter-spacing:0; }}
+.validation-copy {{ color:var(--a-muted); line-height:1.5; font-size:.88rem; }}
+.check-card {{ padding:.78rem .85rem; border:1px solid var(--a-line); border-radius:12px; background:var(--a-surface); font-size:.86rem; }}
+.check-card.pass {{ border-color:rgba(22,163,74,.22); background:rgba(22,163,74,.045); }}
+.check-card.review {{ border-color:rgba(217,119,6,.24); background:rgba(217,119,6,.045); }}
+.check-card strong {{ display:block; margin-bottom:.22rem; color:var(--a-ink); }}
+.check-card span {{ color:var(--a-muted); font-size:.76rem; }}
+.export-hero {{ margin:1rem 0 1.15rem; padding:1.2rem 1.3rem; border:1px solid rgba(22,163,74,.2); border-radius:18px; background:linear-gradient(135deg,rgba(22,163,74,.07),rgba(88,101,242,.045)); }}
+.export-hero-title {{ display:flex; align-items:center; gap:.5rem; color:var(--a-ink); font-size:1.12rem; font-weight:900; }}
+.export-hero-title::before {{ content:"✓"; display:grid; place-items:center; width:1.45rem; height:1.45rem; border-radius:50%; background:var(--a-success); color:#fff; font-size:.8rem; }}
+.export-hero-copy {{ margin-top:.35rem; color:var(--a-muted); line-height:1.5; font-size:.88rem; }}
+.export-card {{ min-height:112px; padding:1rem 1.05rem; border:1px solid var(--a-line); border-radius:15px; background:var(--a-surface); box-shadow:var(--acc-shadow-sm); }}
+.export-card strong {{ display:block; color:var(--a-ink); font-size:1rem; }}
+.export-card span {{ display:block; margin-top:.35rem; color:var(--a-muted); font-size:.8rem; line-height:1.45; }}
+.creator-footer {{ margin:2.5rem 0 .4rem; padding:1rem 0 .2rem; border-top:1px solid var(--a-line); color:var(--a-muted); text-align:center; font-size:.78rem; letter-spacing:.01em; }}
+.creator-footer strong {{ color:var(--a-ink); font-weight:900; }}
 
 .feedback {{ margin-top:2rem; padding:1.35rem; border-radius:18px; background:var(--a-surface-2); border:1px solid var(--a-line); }}
 .feedback-title {{ font-size:1.1rem; font-weight:850; color:var(--a-ink); }}
@@ -2319,6 +2359,7 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
   .hero {{ padding:2.2rem 1.2rem; border-radius:20px; }}
   .hero h1 {{ font-size:2.65rem!important; }}
   .hero-copy {{ font-size:1rem; }}
+  .hero-proof {{ gap:.4rem .75rem; }}
   .kpi-grid {{ grid-template-columns:1fr; }}
   .workspace-title {{ font-size:1.8rem; }}
   .a-top-meta {{ display:none; }}
@@ -2329,6 +2370,9 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
   .workflow-stepper::-webkit-scrollbar {{ display:none; }}
   .workflow-step {{ flex:0 0 7.6rem; flex-direction:column; justify-content:center; gap:.35rem; padding:.6rem .45rem; text-align:center; font-size:.68rem; }}
   .workflow-step-label {{ max-width:100%; }}
+  .review-hero, .validation-hero {{ align-items:flex-start; flex-direction:column; }}
+  .review-count {{ align-self:flex-start; }}
+  .review-detail-grid, .statement-summary {{ grid-template-columns:1fr 1fr; }}
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -2552,6 +2596,11 @@ def v7_feedback():
             else: st.warning("Please enter a message first.")
 
 
+def v7_creator_footer():
+    """Temporary launch attribution; remove this single helper when no longer needed."""
+    st.markdown("<div class='creator-footer'>Built by <strong>Rohan A</strong> · Accountra AI-assisted accounting workflow</div>", unsafe_allow_html=True)
+
+
 def v7_dashboard():
     v7_topbar()
     st.markdown("""
@@ -2561,23 +2610,23 @@ def v7_dashboard():
       <div class='hero-copy'>Accountra turns a clean Trial Balance into an AI-assisted accounting workflow: classify accounts, review exceptions, validate the numbers, and generate professional financial statements.</div>
     </section>
     """, unsafe_allow_html=True)
-    st.markdown("<div style='height:.8rem'></div>",unsafe_allow_html=True)
-    st.markdown("<div class='feature-grid'><div class='feature'><div class='feature-num'>01 · CLASSIFY</div><div class='feature-title'>AI-assisted review</div><div class='feature-copy'>Deterministic accounting rules first, AI fallback when an account needs interpretation.</div></div><div class='feature'><div class='feature-num'>02 · VALIDATE</div><div class='feature-title'>Know what needs attention</div><div class='feature-copy'>Balance checks, reconciliation, classification confidence and review flags in one place.</div></div><div class='feature'><div class='feature-num'>03 · REPORT</div><div class='feature-title'>Build professional statements</div><div class='feature-copy'>Schedule III-style Profit & Loss, Balance Sheet, notes and export-ready reports.</div></div></div>",unsafe_allow_html=True)
-    st.markdown("<div class='section-title'>Your accounting command center</div><div class='section-copy'>Start only when you're ready. Your upload and report setup stay inside the workspace.</div>",unsafe_allow_html=True)
-    a,b,c=st.columns([1.2,1,1])
+    st.markdown("<div class='hero-actions'><div class='hero-actions-copy'>Start with a balanced Trial Balance and move through a controlled review workflow.</div><div class='hero-actions-note'>Your file stays inside this session until you reset the workspace.</div></div>",unsafe_allow_html=True)
+    a,b=st.columns([1.15,1])
     with a:
         if st.button("Let's Get Started →", type="primary", use_container_width=True, key="v7_start"):
             st.session_state["app_page"]="workspace"; st.session_state["workspace_section"]="upload"; st.rerun()
     with b:
         if st.button("Explore the workflow", use_container_width=True, key="v7_explore"):
             st.session_state["app_page"]="workspace"; st.session_state["workspace_section"]="upload"; st.rerun()
-    with c:
-        st.markdown("<div style='padding:.7rem 0;color:var(--a-muted);font-size:.9rem'>No data is processed until you choose to start.</div>",unsafe_allow_html=True)
-    st.markdown("<div class='section-title'>Built for the review that happens before the report</div>",unsafe_allow_html=True)
+    st.markdown("<div class='hero-proof'><span>Human review before export</span><span>Excel and PDF outputs</span><span>Schedule III-style statements</span></div>",unsafe_allow_html=True)
+    st.markdown("<div style='height:.8rem'></div>",unsafe_allow_html=True)
+    st.markdown("<div class='feature-grid'><div class='feature'><div class='feature-num'>01 · CLASSIFY</div><div class='feature-title'>AI-assisted review</div><div class='feature-copy'>Deterministic accounting rules first, AI fallback when an account needs interpretation.</div></div><div class='feature'><div class='feature-num'>02 · VALIDATE</div><div class='feature-title'>Know what needs attention</div><div class='feature-copy'>Balance checks, reconciliation, classification confidence and review flags in one place.</div></div><div class='feature'><div class='feature-num'>03 · REPORT</div><div class='feature-title'>Build professional statements</div><div class='feature-copy'>Schedule III-style Profit & Loss, Balance Sheet, notes and export-ready reports.</div></div></div>",unsafe_allow_html=True)
+    st.markdown("<div class='section-title'>Built for the review that happens before the report</div><div class='section-copy'>Every step keeps the numbers visible, the exceptions clear, and the final output under your control.</div>",unsafe_allow_html=True)
     st.markdown("<div class='info-grid'><div class='info-card'><strong>Readable by default</strong><span>Large financial figures, clear hierarchy and high-contrast tables designed for long review sessions.</span></div><div class='info-card'><strong>One workspace at a time</strong><span>Move from Trial Balance to AI Review, Statements, Validation and Reports without an endless page.</span></div><div class='info-card'><strong>Human in the loop</strong><span>Every AI classification can be reviewed and overridden before statements are treated as final.</span></div></div>",unsafe_allow_html=True)
     st.markdown("<div style='height:1.8rem'></div>",unsafe_allow_html=True)
     st.markdown("<div class='coming-soon'>Dark mode · Coming soon</div>", unsafe_allow_html=True)
     st.caption("Accountra · AI-assisted accounting workflow · Review classifications and statutory disclosures before filing.")
+    v7_creator_footer()
 
 
 def v7_context_panel():
@@ -2651,6 +2700,7 @@ def v7_workspace():
             v7_context_panel()
         st.markdown("<div class='section-title'>Before you continue</div><div class='section-copy'>Keep the upload clean and let Accountra handle classification and validation after the file is balanced.</div>",unsafe_allow_html=True)
         v7_feedback()
+        v7_creator_footer()
         return
 
     results_df=v7_apply_overrides(pd.DataFrame(st.session_state["results"]))
@@ -2676,16 +2726,21 @@ def v7_workspace():
         v7_render_validation(results_df,data)
     elif nav=="reports":
         v7_render_reports(data)
+    v7_creator_footer()
 
 
 def v7_render_trial_balance(results_df):
     v7_header("Trial Balance","Search, filter and review the classified accounts before moving to statements.")
     total_debit=float(results_df["Debit"].sum()); total_credit=float(results_df["Credit"].sum())
+    review_count=int(results_df["Ambiguous"].fillna(True).sum())
     c1,c2,c3,c4=st.columns(4)
     with c1: st.markdown(f"<div class='kpi'><div class='kpi-label'>Accounts</div><div class='kpi-value'>{len(results_df):,}</div><div class='kpi-note'>Processed</div></div>",unsafe_allow_html=True)
     with c2: st.markdown(f"<div class='kpi'><div class='kpi-label'>Total Debit</div><div class='kpi-value'>{indian_currency(total_debit)}</div></div>",unsafe_allow_html=True)
     with c3: st.markdown(f"<div class='kpi'><div class='kpi-label'>Total Credit</div><div class='kpi-value'>{indian_currency(total_credit)}</div></div>",unsafe_allow_html=True)
     with c4: st.markdown(f"<div class='kpi'><div class='kpi-label'>Status</div><div class='kpi-value' style='font-size:1.35rem'>{'Balanced' if abs(total_debit-total_credit)<.01 else 'Review'}</div></div>",unsafe_allow_html=True)
+    review_copy="Review the flagged accounts before generating statements." if review_count else "All accounts have passed the current classification review."
+    review_label="Accounts need review" if review_count else "Ready for review"
+    st.markdown(f"<div class='review-hero'><div><div class='review-hero-title'>{review_label}</div><div class='review-hero-copy'>{review_copy}</div></div><div class='review-count'>{review_count}<small>flagged</small></div></div>",unsafe_allow_html=True)
     q=st.text_input("Search accounts",placeholder="Search by account name…",key="v7_tb_search")
     f1,f2,f3=st.columns(3)
     with f1: nature=st.selectbox("Nature",["All"]+sorted(results_df["Nature"].dropna().astype(str).unique()),key="v7_tb_nature")
@@ -2696,8 +2751,9 @@ def v7_render_trial_balance(results_df):
     if nature!="All": view=view[view["Nature"]==nature]
     if cls!="All": view=view[view["Classification"]==cls]
     view=view.sort_values(sortby,ascending=(sortby=="Account"))
-    disp=view[["Account","Debit","Credit","Nature","Classification","Statement","Confidence"]].copy()
+    disp=view[["Account","Debit","Credit","Nature","Classification","Statement","Confidence","Ambiguous"]].copy()
     disp["Debit"]=disp["Debit"].map(indian_currency); disp["Credit"]=disp["Credit"].map(indian_currency); disp["Confidence"]=disp["Confidence"].map(lambda x:f"{float(x)*100:.0f}%")
+    disp["Review"]=disp.pop("Ambiguous").map(lambda value:"Needs review" if bool(value) else "Ready")
     st.dataframe(disp,use_container_width=True,hide_index=True,height=560)
 
 
@@ -2709,6 +2765,8 @@ def v7_render_ai_review(results_df):
     with c1: st.metric("Needs review",len(review))
     with c2: st.metric("Below 80% confidence",len(low))
     with c3: st.metric("Approved",int((results_df["Classification"].isin(APPROVED_HEADS)).sum()))
+    review_copy="Resolve the highlighted accounts, then continue to statements." if len(review) else "No exceptions are waiting for manual classification."
+    st.markdown(f"<div class='review-hero'><div><div class='review-hero-title'>Human review queue</div><div class='review-hero-copy'>{review_copy}</div></div><div class='review-count'>{len(review)}<small>open</small></div></div>",unsafe_allow_html=True)
     st.markdown("<div class='ai-card'><div class='ai-title'>Accountra Copilot</div><div class='ai-copy'>Review the exceptions below. Deterministic classifications are retained, while uncertain accounts remain visible for human confirmation.</div></div>",unsafe_allow_html=True)
     if not len(review):
         st.success("No accounts currently require manual review.")
@@ -2716,7 +2774,8 @@ def v7_render_ai_review(results_df):
     st.dataframe(review[["Account","Nature","Classification","Confidence","Reason","Missing Information"]].assign(Confidence=lambda x:x["Confidence"].map(lambda v:f"{float(v)*100:.0f}%")),use_container_width=True,hide_index=True,height=380)
     selected=st.selectbox("Account to review",review["Account"].tolist(),key="v7_review_account")
     row=review[review["Account"]==selected].iloc[0]
-    st.markdown(f"<div class='panel'><div class='panel-title'>{selected}</div><div class='panel-copy'><strong>Current classification:</strong> {row['Classification']}<br><strong>Why:</strong> {row['Reason'] or 'No additional reason supplied.'}<br><strong>Missing information:</strong> {row['Missing Information'] or 'None recorded.'}</div></div>",unsafe_allow_html=True)
+    confidence=float(row["Confidence"] or 0)
+    st.markdown(f"<div class='review-detail'><div class='panel-title'>{selected}</div><div class='panel-copy'>This account is held for human confirmation before it flows into the statements.</div><div class='review-detail-grid'><div class='review-detail-item'>Classification<strong>{row['Classification']}</strong></div><div class='review-detail-item'>Confidence<strong>{confidence*100:.0f}%</strong></div><div class='review-detail-item'>Statement<strong>{row['Statement']}</strong></div></div><div class='panel-copy' style='margin-top:1rem'><strong>Why:</strong> {row['Reason'] or 'No additional reason supplied.'}<br><strong>Missing information:</strong> {row['Missing Information'] or 'None recorded.'}</div></div>",unsafe_allow_html=True)
     opts=list(APPROVED_HEADS)
     new=st.selectbox("Change classification",sorted(opts),index=sorted(opts).index(row["Classification"]) if row["Classification"] in opts else 0,key="v7_override")
     if st.button("Apply classification",type="primary",key="v7_apply_override"):
@@ -2726,10 +2785,16 @@ def v7_render_ai_review(results_df):
 def v7_render_statements(data):
     v7_header("Financial Statements","Schedule III-style presentation with clear current and comparative columns.")
     pnl,bs=v7_statement_rows(data)
+    bs_difference=data["total_assets"]-data["total_el"]
+    comparative_label="Loaded" if st.session_state.get("comparative_results") else "Not supplied"
+    comparative_tone="good" if st.session_state.get("comparative_results") else "neutral"
+    tally_label="Tally passed" if abs(bs_difference)<.01 else "Needs review"
+    tally_tone="good" if abs(bs_difference)<.01 else "warn"
+    st.markdown(f"<div class='statement-summary'><div class='statement-summary-card'><div class='statement-summary-label'>Profit for period</div><div class='statement-summary-value'>{indian_currency(data['profit'])}</div></div><div class='statement-summary-card'><div class='statement-summary-label'>Total assets</div><div class='statement-summary-value'>{indian_currency(data['total_assets'])}</div></div><div class='statement-summary-card'><div class='statement-summary-label'>Balance Sheet</div><div class='statement-summary-value'><span class='status-badge {tally_tone}'>{tally_label}</span></div></div><div class='statement-summary-card'><div class='statement-summary-label'>Comparative period</div><div class='statement-summary-value'><span class='status-badge {comparative_tone}'>{comparative_label}</span></div></div></div>",unsafe_allow_html=True)
     v7_render_statement("Statement of Profit & Loss",f"For the period ended {st.session_state['reporting_date'].strftime('%d %B %Y')}",pnl)
     st.markdown("<div style='height:1rem'></div>",unsafe_allow_html=True)
     v7_render_statement("Balance Sheet",f"As at {st.session_state['reporting_date'].strftime('%d %B %Y')}",bs)
-    diff=data["total_assets"]-data["total_el"]
+    diff=bs_difference
     if abs(diff)<.01: st.success("Balance Sheet Tally passed.")
     else: st.error(f"Balance Sheet Tally failed. Difference: {indian_currency(abs(diff))}")
 
@@ -2744,16 +2809,16 @@ def v7_render_validation(results_df,data):
     review=int(results_df["Ambiguous"].fillna(True).sum())
     checks=[("Trial Balance balances",tb),("All classifications approved",valid),("Debit/Credit numeric",numeric),("P&L reconciles",pnl_ok),("Balance Sheet tallies",bs_ok),("No manual review pending",review==0)]
     passed=sum(x[1] for x in checks)
-    st.markdown(f"<div class='panel'><div class='panel-title'>Validation score</div><div class='metric-big'>{passed}/{len(checks)}</div><div class='panel-copy'>Core checks passed</div></div>",unsafe_allow_html=True)
+    score_tone="good" if passed==len(checks) else "warn"
+    score_copy="All control checks passed. Your report package is ready for final review." if passed==len(checks) else "Some controls need attention before the statements should be treated as final."
+    st.markdown(f"<div class='validation-hero'><div><div class='validation-score'>{passed}<small>/ {len(checks)} checks passed</small></div><div class='validation-copy'>{score_copy}</div></div><span class='status-badge {score_tone}'>{'Ready to export' if passed==len(checks) else 'Review required'}</span></div>",unsafe_allow_html=True)
+    check_html=[]
     for name, ok in checks:
-        # Never use a Streamlit command in a conditional expression here.
-        # Streamlit's "magic" display can render the returned DeltaGenerator
-        # object itself, which makes internal DeltaGenerator documentation
-        # appear on the page.
-        if ok:
-            st.success(f"PASS · {name}")
-        else:
-            st.warning(f"REVIEW · {name}")
+        state="pass" if ok else "review"
+        label="PASS" if ok else "REVIEW"
+        detail="Control check completed successfully." if ok else "Resolve this item before final export."
+        check_html.append(f"<div class='check-card {state}'><strong>{label} · {name}</strong><span>{detail}</span></div>")
+    st.markdown(f"<div class='validation-grid'>{''.join(check_html)}</div>",unsafe_allow_html=True)
     if data["pbt"]<-.01 and data["tax_expense"]>.01: st.warning("PBT is negative while Tax Expense is present. Review the tax treatment before filing.")
 
 
@@ -2792,7 +2857,9 @@ def v7_render_reports(data):
     export_bs=v7_export_statement_rows(bs)
     excel=make_schedule3_excel(company_name=st.session_state["company_name"],cin=st.session_state["cin"],reporting_date=st.session_state["reporting_date"],results_df=results_df,pnl_rows=export_pnl,bs_rows=export_bs,validation_rows=validation_rows,notes_rows=notes)
     pdf=make_schedule3_pdf(company_name=st.session_state["company_name"],cin=st.session_state["cin"],reporting_date=st.session_state["reporting_date"],pnl_rows=export_pnl,bs_rows=export_bs,validation_rows=validation_rows,notes_rows=notes)
-    st.markdown("<div class='info-grid'><div class='info-card'><strong>Excel working paper</strong><span>Structured Schedule III-style workbook with classifications and validation information.</span></div><div class='info-card'><strong>PDF statements</strong><span>Readable financial statements for review and sharing.</span></div><div class='info-card'><strong>Final check</strong><span>Review the Validation Center before treating exports as final.</span></div></div>",unsafe_allow_html=True)
+    review_count=int(results_df["Ambiguous"].fillna(True).sum())
+    st.markdown("<div class='export-hero'><div class='export-hero-title'>Your report package is prepared</div><div class='export-hero-copy'>Download the working paper or presentation PDF after reviewing the classifications and validation controls. Keep the generated files with your engagement documentation.</div></div>",unsafe_allow_html=True)
+    st.markdown(f"<div class='info-grid'><div class='export-card'><strong>Excel working paper</strong><span>Structured Schedule III-style workbook with classifications, validation information and review context.</span></div><div class='export-card'><strong>PDF statements</strong><span>Readable Profit &amp; Loss and Balance Sheet presentation for review and sharing.</span></div><div class='export-card'><strong>Review status</strong><span>{'No manual review items remain.' if review_count==0 else f'{review_count} account(s) still flagged for review.'}</span></div></div>",unsafe_allow_html=True)
     safe=re.sub(r"[^A-Za-z0-9_-]+","_",st.session_state["company_name"].strip() or "Accountra").strip("_")
     c1,c2=st.columns(2)
     with c1: st.download_button("Download Excel working paper",excel,f"{safe}_Schedule_III_Working_Paper.xlsx",mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",use_container_width=True,key="v7_excel")
