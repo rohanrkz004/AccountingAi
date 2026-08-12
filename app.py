@@ -2684,6 +2684,19 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .review-detail-grid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:.65rem; margin-top:1rem; }}
 .review-detail-item {{ padding:.7rem .8rem; border-radius:12px; background:var(--a-surface-2); color:var(--a-muted); font-size:.78rem; }}
 .review-detail-item strong {{ display:block; margin-top:.2rem; color:var(--a-ink); font-size:.92rem; }}
+.review-hero, .ai-card, .review-detail {{ position:relative; overflow:hidden; transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease; }}
+.review-hero::after, .ai-card::after, .review-detail::after {{ content:""; position:absolute; inset:0; pointer-events:none; opacity:0; background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.22) 48%,transparent 76%); transform:translateX(-115%); transition:opacity .2s ease, transform .55s ease; }}
+.review-hero:hover, .ai-card:hover, .review-detail:hover {{ transform:translateY(-3px); box-shadow:0 16px 34px rgba(31,41,55,.11); border-color:rgba(88,101,242,.34); }}
+.review-hero:hover::after, .ai-card:hover::after, .review-detail:hover::after {{ opacity:1; transform:translateX(115%); }}
+.review-hero {{ cursor:help; }}
+.review-count {{ transition:transform .2s ease, background .2s ease, box-shadow .2s ease; }}
+.review-hero:hover .review-count {{ transform:scale(1.06); background:var(--a-primary-soft); box-shadow:0 8px 18px rgba(245,158,11,.16); }}
+.review-detail-item {{ transition:transform .18s ease, background .18s ease; }}
+.review-detail-item:hover {{ transform:translateY(-2px); background:var(--a-primary-soft); }}
+.review-action {{ margin-top:1rem; padding:1rem 1.1rem; border:1px solid rgba(88,101,242,.2); border-radius:15px; background:linear-gradient(135deg,rgba(88,101,242,.055),rgba(6,182,212,.045)); }}
+.review-action-title {{ color:var(--a-ink); font-size:.98rem; font-weight:900; }}
+.review-action-copy {{ color:var(--a-muted); font-size:.82rem; line-height:1.45; margin-top:.25rem; }}
+.review-option-hint {{ display:inline-flex; align-items:center; gap:.4rem; margin:.7rem 0 .15rem; padding:.35rem .6rem; border-radius:999px; background:var(--a-primary-soft); color:var(--a-primary); font-size:.72rem; font-weight:850; }}
 .status-badge {{ display:inline-flex; align-items:center; gap:.35rem; padding:.32rem .55rem; border-radius:999px; font-size:.7rem; font-weight:850; }}
 .status-badge.good {{ color:var(--a-success); background:rgba(22,163,74,.09); border:1px solid rgba(22,163,74,.2); }}
 .status-badge.warn {{ color:var(--a-warning); background:rgba(217,119,6,.09); border:1px solid rgba(217,119,6,.2); }}
@@ -3273,6 +3286,121 @@ def v7_render_trial_balance(results_df):
     st.dataframe(disp,use_container_width=True,hide_index=True,height=560)
 
 
+def v7_relevant_classifications(account, current_classification="", nature="", statement=""):
+    """Return only the classification choices that fit the account context."""
+    name = re.sub(r"\s+", " ", str(account).strip().lower())
+    current = str(current_classification or "").strip()
+    nature = str(nature or "").strip().lower()
+    statement = str(statement or "").strip().lower()
+
+    def unique(options):
+        return list(dict.fromkeys(option for option in options if option in APPROVED_HEADS))
+
+    if any(term in name for term in [
+        "interest expense", "interest paid", "interest on loan", "interest on loans",
+        "interest on bank loan", "interest on borrowing", "interest on borrowings",
+        "finance cost", "finance costs", "bank charges", "borrowing cost",
+    ]):
+        return unique(["Finance Costs"])
+
+    if any(term in name for term in [
+        "loan", "loans", "borrowing", "borrowings", "debenture", "debentures",
+        "bond payable", "bank overdraft", "cash credit", "vehicle loan",
+    ]) or current in {"Borrowings", "Current Borrowings", "Non-current Borrowings"}:
+        return unique(["Current Borrowings", "Non-current Borrowings"])
+
+    if any(term in name for term in [
+        "security deposit", "security deposits", "deposit paid", "refundable deposit",
+        "preliminary expense", "preliminary expenses", "capital advance",
+    ]):
+        return unique(["Other Current Assets", "Other Non-current Assets"])
+
+    if any(term in name for term in [
+        "trade payable", "trade payables", "accounts payable", "sundry creditor",
+        "creditor", "supplier payable", "bill payable", "bills payable",
+    ]):
+        return unique(["Trade Payables", "Other Current Liabilities"])
+
+    if any(term in name for term in [
+        "trade receivable", "trade receivables", "accounts receivable", "sundry debtor",
+        "debtor", "customer receivable", "intercompany receivable", "refund receivable",
+    ]):
+        return unique(["Trade Receivables", "Other Current Assets"])
+
+    if any(term in name for term in [
+        "inventory", "inventories", "raw material", "finished goods", "work in progress",
+        "packing material", "spare parts", "consumable stores", "fuel inventory",
+    ]):
+        return unique(["Inventories"])
+
+    if any(term in name for term in [
+        "website development", "software", "goodwill", "patent", "trademark", "copyright",
+        "licence", "license", "intangible",
+    ]):
+        return unique(["Intangible Assets", "Intangible Assets Under Development"])
+
+    if any(term in name for term in [
+        "land", "building", "plant", "machinery", "machine", "equipment", "furniture",
+        "fixture", "vehicle", "generator", "forklift", "renovation", "electrical installation",
+    ]):
+        return unique(["PPE", "Capital Work-in-Progress"])
+
+    if any(term in name for term in [
+        "share capital", "share application", "retained earnings", "reserve", "reserves",
+        "surplus", "equity", "capital account",
+    ]):
+        return unique(["Share Capital", "Other Equity", "Capital Account"])
+
+    if any(term in name for term in [
+        "sales", "sale of goods", "revenue", "turnover", "service income", "service revenue",
+        "consulting income", "consulting revenue", "operating income", "royalty income",
+        "interest received", "dividend income", "rent received", "gain on sale",
+    ]):
+        return unique(["Revenue from Operations", "Other Income"])
+
+    if any(term in name for term in ["income tax", "tax expense", "current tax"]):
+        return unique(["Tax Expense"])
+
+    if any(term in name for term in [
+        "interest", "finance cost", "finance costs", "bank charges", "borrowing cost",
+    ]):
+        return unique(["Finance Costs"])
+
+    if any(term in name for term in [
+        "salary", "salaries", "wages", "staff welfare", "employee benefit", "bonus expense",
+        "gratuity", "provident fund expense", "pf expense", "esi expense", "direct labour",
+        "direct labor", "recruitment expense", "training expense", "employee medical",
+    ]):
+        return unique(["Employee Benefits Expense"])
+
+    if any(term in name for term in [
+        "purchase", "purchases", "material", "materials", "import duty", "factory consumables",
+        "subcontracting charges", "freight inward", "carriage inward",
+    ]):
+        return unique(["Purchases", "Cost of Materials Consumed"])
+
+    if any(term in name for term in ["opening stock", "opening inventory", "changes in inventories"]):
+        return unique(["Changes in Inventories"])
+
+    if any(term in name for term in ["depreciation", "amortisation", "amortization"]):
+        return unique(["Depreciation & Amortisation"])
+
+    if nature == "asset":
+        return unique(["Other Current Assets", "Other Non-current Assets"])
+    if nature == "liability":
+        return unique(["Other Current Liabilities", "Other Non-current Liabilities"])
+    if nature == "equity":
+        return unique(["Share Capital", "Other Equity", "Capital Account"])
+    if nature == "income" or statement == "profit & loss" and "income" in name:
+        return unique(["Revenue from Operations", "Other Income"])
+    if nature == "expense":
+        return unique(["Other Expenses", "Employee Benefits Expense", "Finance Costs"])
+
+    if current in APPROVED_HEADS and current != "NEEDS_REVIEW":
+        return [current]
+    return unique(["Other Current Assets", "Other Current Liabilities"])
+
+
 def v7_render_ai_review(results_df):
     v7_header("AI Review","A focused queue for accounts that deserve human attention before reporting.")
     review=results_df[results_df["Ambiguous"]==True].copy()
@@ -3292,10 +3420,16 @@ def v7_render_ai_review(results_df):
     row=review[review["Account"]==selected].iloc[0]
     confidence=float(row["Confidence"] or 0)
     st.markdown(f"<div class='review-detail'><div class='panel-title'>{selected}</div><div class='panel-copy'>This account is held for human confirmation before it flows into the statements.</div><div class='review-detail-grid'><div class='review-detail-item'>Classification<strong>{row['Classification']}</strong></div><div class='review-detail-item'>Confidence<strong>{confidence*100:.0f}%</strong></div><div class='review-detail-item'>Statement<strong>{row['Statement']}</strong></div></div><div class='panel-copy' style='margin-top:1rem'><strong>Why:</strong> {row['Reason'] or 'No additional reason supplied.'}<br><strong>Missing information:</strong> {row['Missing Information'] or 'None recorded.'}</div></div>",unsafe_allow_html=True)
-    opts=list(APPROVED_HEADS)
-    new=st.selectbox("Change classification",sorted(opts),index=sorted(opts).index(row["Classification"]) if row["Classification"] in opts else 0,key="v7_override")
+    opts=v7_relevant_classifications(selected,row["Classification"],row["Nature"],row["Statement"])
+    st.markdown(f"<div class='review-action'><div class='review-action-title'>Choose the final classification</div><div class='review-action-copy'>Only classifications relevant to <strong>{selected}</strong> are shown, so the review stays focused.</div><div class='review-option-hint'>✦ {len(opts)} relevant option{'s' if len(opts) != 1 else ''} matched</div></div>",unsafe_allow_html=True)
+    placeholder="Select a classification…"
+    option_values=[placeholder]+sorted(opts)
+    new=st.selectbox("Relevant classification",option_values,index=0,key=f"v7_override_choice_{selected}")
     if st.button("Apply classification",type="primary",key="v7_apply_override"):
-        st.session_state[f"override_{selected}"]=new; st.session_state["results"]=v7_apply_overrides(results_df).to_dict("records"); st.success("Classification updated."); st.rerun()
+        if new == placeholder:
+            st.warning("Choose one of the relevant classifications before applying the review.")
+        else:
+            st.session_state[f"override_{selected}"]=new; st.session_state["results"]=v7_apply_overrides(results_df).to_dict("records"); st.success("Classification updated."); st.rerun()
 
 
 def v7_render_statements(data):
