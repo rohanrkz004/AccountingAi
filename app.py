@@ -2351,10 +2351,12 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 [data-testid="stSidebar"] {{ display:none!important; }}
 
 .a-topbar {{ display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.2rem 0 1rem; border-bottom:1px solid var(--a-line); margin-bottom:.35rem; }}
-.site-nav {{ display:flex; justify-content:flex-end; gap:.45rem; margin:0 0 1rem; }}
-.site-nav-note {{ margin-right:auto; align-self:center; color:var(--a-muted); font-size:.76rem; font-weight:750; }}
-.site-nav .stButton button {{ min-height:38px!important; padding:.35rem .85rem!important; border:1px solid var(--a-line)!important; background:var(--a-surface)!important; color:var(--a-ink)!important; font-size:.82rem!important; box-shadow:none!important; }}
+.site-nav {{ display:flex; justify-content:flex-end; gap:.45rem; margin:-3.2rem 0 1.85rem; position:relative; z-index:3; }}
+.site-nav-note {{ display:none; }}
+.site-nav .stButton button {{ min-height:36px!important; padding:.3rem .72rem!important; border:0!important; background:transparent!important; color:var(--a-muted)!important; font-size:.8rem!important; font-weight:700!important; box-shadow:none!important; }}
 .site-nav .stButton button:hover {{ border-color:rgba(88,101,242,.35)!important; color:var(--a-primary)!important; box-shadow:0 5px 16px rgba(15,23,42,.07)!important; }}
+.site-nav .stButton:last-child button {{ padding:.48rem 1rem!important; border:1px solid var(--a-primary)!important; border-radius:9px!important; background:var(--a-primary)!important; color:#fff!important; font-weight:850!important; }}
+.site-nav .stButton:last-child button:hover {{ background:#4653df!important; color:#fff!important; }}
 .a-brand {{ display:flex; align-items:center; gap:.75rem; font-weight:800; color:var(--a-ink); }}
 .a-logo {{ width:40px; height:40px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg,var(--a-primary),var(--a-cyan)); color:white; font-weight:900; font-size:1.25rem; box-shadow:0 8px 22px rgba(88,101,242,.25); }}
 .a-brand-name {{ font-size:1.18rem; letter-spacing:-.02em; }}
@@ -2363,6 +2365,8 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .a-top-meta {{ color:var(--a-muted); font-size:.86rem; font-weight:700; }}
 .a-session-pill {{ display:inline-flex; align-items:center; gap:.45rem; padding:.45rem .7rem; border:1px solid var(--a-line); border-radius:999px; background:var(--a-surface); color:var(--a-muted); font-size:.76rem; font-weight:800; white-space:nowrap; }}
 .a-session-dot {{ width:.48rem; height:.48rem; border-radius:50%; background:var(--a-success); box-shadow:0 0 0 3px rgba(22,163,74,.12); }}
+.a-topbar.compact {{ margin-bottom:0; }}
+.a-topbar.compact .a-top-actions {{ visibility:hidden; }}
 
 .hero {{ position:relative; overflow:hidden; border:1px solid rgba(88,101,242,.18); border-radius:28px; padding:4.1rem 4.5rem 3.35rem; background:linear-gradient(135deg,#ffffff 0%,#eef2ff 62%,#e0f7ff 100%); box-shadow:var(--a-shadow); animation:accountra-rise .55s ease both; }}
 .hero:after {{ content:""; position:absolute; width:380px; height:380px; border-radius:50%; right:-130px; top:-210px; border:1px solid rgba(88,101,242,.18); box-shadow:0 0 0 55px rgba(88,101,242,.03),0 0 0 110px rgba(88,101,242,.02); }}
@@ -2572,21 +2576,27 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 def v7_site_nav():
     """Top-right informational navigation for the public product shell."""
     st.markdown("<div class='site-nav'><span class='site-nav-note'>Simple, review-first accounting workflow</span>", unsafe_allow_html=True)
-    left, right = st.columns([1, 1])
-    with left:
+    spacer, about_col, contact_col, start_col = st.columns([4.8, 1, 1.15, 1.65])
+    with about_col:
         if st.button("About", key="v7_about_nav", use_container_width=True):
             st.session_state["app_page"] = "about"
             st.rerun()
-    with right:
+    with contact_col:
         if st.button("Contact Us", key="v7_contact_nav", use_container_width=True):
             st.session_state["app_page"] = "contact"
+            st.rerun()
+    with start_col:
+        if st.button("Get Started →", key="v7_start_nav", use_container_width=True):
+            st.session_state["app_page"] = "workspace"
+            st.session_state["workspace_section"] = "upload"
             st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def v7_topbar():
+def v7_topbar(compact=False):
+    topbar_class = "a-topbar compact" if compact else "a-topbar"
     st.markdown("""
-    <div class='a-topbar'>
+    <div class='""" + topbar_class + """'>
       <div class='a-brand'><div class='a-logo'>A</div><div><div class='a-brand-name'>Accountra</div><div class='a-brand-sub'>AI-powered accounting workspace</div></div></div>
       <div class='a-top-actions'>
         <div class='a-session-pill'><span class='a-session-dot'></span>Session workspace</div>
@@ -2598,7 +2608,7 @@ def v7_topbar():
 
 def v7_public_page(kind):
     """Render the lightweight public About or Contact page."""
-    v7_topbar()
+    v7_topbar(compact=True)
     v7_site_nav()
     if kind == "about":
         st.markdown("<section class='page-hero'><div class='page-eyebrow'>ABOUT ACCOUNTRA</div><div class='page-title'>Accounting clarity, with a human in the loop.</div><div class='page-copy'>Accountra helps turn Trial Balance data into structured, review-ready financial statements without hiding the numbers behind a black box.</div></section>", unsafe_allow_html=True)
@@ -2880,7 +2890,7 @@ def v7_creator_footer():
 
 
 def v7_dashboard():
-    v7_topbar()
+    v7_topbar(compact=True)
     v7_site_nav()
     st.markdown("""
     <section class='hero'>
