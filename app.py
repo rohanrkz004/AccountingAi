@@ -2284,10 +2284,26 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
 .workflow-step {{ display:flex; align-items:center; gap:.55rem; min-width:0; padding:.65rem .7rem; border-radius:11px; color:var(--a-muted); font-size:.76rem; font-weight:850; line-height:1.2; }}
 .workflow-step-marker {{ display:grid; place-items:center; flex:0 0 1.55rem; width:1.55rem; height:1.55rem; border:1px solid var(--a-line-strong); border-radius:50%; color:var(--a-muted); font-size:.7rem; font-variant-numeric:tabular-nums; }}
 .workflow-step-label {{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
+.workflow-step:focus-visible, .stButton button:focus-visible, input:focus-visible, textarea:focus-visible, [role="combobox"]:focus-visible {{ outline:3px solid rgba(88,101,242,.32)!important; outline-offset:2px!important; }}
 .workflow-step.is-active {{ background:var(--a-primary-soft); color:var(--a-primary); }}
 .workflow-step.is-active .workflow-step-marker {{ border-color:var(--a-primary); background:var(--a-primary); color:#fff; box-shadow:0 0 0 3px rgba(88,101,242,.12); }}
 .workflow-step.is-complete {{ color:var(--a-ink); }}
 .workflow-step.is-complete .workflow-step-marker {{ border-color:rgba(22,163,74,.28); background:rgba(22,163,74,.09); color:var(--a-success); }}
+
+.phase6-status {{ display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:-.35rem 0 1rem; padding:.85rem 1rem; border:1px solid var(--a-line); border-radius:15px; background:linear-gradient(135deg,var(--a-surface),var(--a-surface-2)); }}
+.phase6-status-main {{ min-width:0; }}
+.phase6-status-eyebrow {{ color:var(--a-primary); font-size:.68rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }}
+.phase6-status-title {{ color:var(--a-ink); font-size:.98rem; font-weight:900; margin-top:.16rem; }}
+.phase6-status-copy {{ color:var(--a-muted); font-size:.82rem; line-height:1.45; margin-top:.18rem; }}
+.phase6-status-meta {{ flex:0 0 auto; display:flex; align-items:center; gap:.45rem; color:var(--a-muted); font-size:.76rem; font-weight:800; white-space:nowrap; }}
+.phase6-status-dot {{ width:.45rem; height:.45rem; border-radius:50%; background:var(--a-success); box-shadow:0 0 0 4px rgba(22,163,74,.1); }}
+.phase6-empty {{ margin:1rem 0; padding:2rem 1.3rem; border:1px dashed var(--a-line-strong); border-radius:18px; background:var(--a-surface-2); text-align:center; }}
+.phase6-empty-icon {{ display:grid; place-items:center; width:2.5rem; height:2.5rem; margin:0 auto .7rem; border-radius:50%; background:var(--a-primary-soft); color:var(--a-primary); font-size:1.1rem; font-weight:900; }}
+.phase6-empty-title {{ color:var(--a-ink); font-size:1.08rem; font-weight:900; }}
+.phase6-empty-copy {{ max-width:40rem; margin:.35rem auto 0; color:var(--a-muted); line-height:1.55; font-size:.9rem; }}
+.phase6-next {{ margin:1rem 0 1.2rem; padding:.85rem 1rem; border-left:3px solid var(--a-primary); border-radius:0 12px 12px 0; background:var(--a-primary-soft); color:var(--a-muted); font-size:.86rem; line-height:1.5; }}
+.phase6-next strong {{ color:var(--a-ink); }}
+.upload-format-note {{ margin-top:.65rem; color:var(--a-muted); font-size:.78rem; line-height:1.5; }}
 
 .back-row {{ display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }}
 .back-label {{ color:var(--a-muted); font-weight:700; font-size:.9rem; }}
@@ -2373,6 +2389,8 @@ body, .stApp, .stMarkdown, p, label, input, textarea, button {{ font-size:1rem!i
   .review-hero, .validation-hero {{ align-items:flex-start; flex-direction:column; }}
   .review-count {{ align-self:flex-start; }}
   .review-detail-grid, .statement-summary {{ grid-template-columns:1fr 1fr; }}
+  .phase6-status {{ align-items:flex-start; flex-direction:column; gap:.55rem; }}
+  .phase6-status-meta {{ white-space:normal; }}
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -2437,8 +2455,31 @@ def v7_stepper(active):
     for index,(key,label) in enumerate(steps):
         state="is-active" if index==active_index else "is-complete" if index<active_index else ""
         marker="✓" if index<active_index else str(index+1)
-        html.append(f"<div class='workflow-step {state}'><span class='workflow-step-marker'>{marker}</span><span class='workflow-step-label'>{label}</span></div>")
-    st.markdown(f"<div class='workflow-stepper' aria-label='Accounting workflow progress'>{''.join(html)}</div>", unsafe_allow_html=True)
+        current=" aria-current='step'" if index==active_index else ""
+        current_label=" (current step)" if index==active_index else ""
+        html.append(f"<div class='workflow-step {state}' role='listitem' tabindex='0'{current} aria-label='{label}{current_label}'><span class='workflow-step-marker' aria-hidden='true'>{marker}</span><span class='workflow-step-label'>{label}</span></div>")
+    st.markdown(f"<div class='workflow-stepper' role='list' aria-label='Accounting workflow progress'>{''.join(html)}</div>", unsafe_allow_html=True)
+
+
+def v7_workspace_status(active):
+    """Explain the current workflow position and the next user action."""
+    stages={
+        "upload": ("Upload", "Add a balanced Trial Balance and confirm the report context.", "Source file stays in this session."),
+        "trial_balance": ("Trial Balance", "Review the classified account list and filter anything that looks unusual.", "Review before statements."),
+        "ai_review": ("AI Review", "Resolve flagged accounts or confirm the current classification before reporting.", "Human review checkpoint."),
+        "statements": ("Statements", "Read the Profit & Loss and Balance Sheet with current and comparative columns.", "Numbers remain visible."),
+        "validation": ("Validation", "Clear every control check before treating the report package as final.", "Final control layer."),
+        "reports": ("Export", "Download the working paper and PDF after reviewing the final status.", "Excel + PDF ready."),
+    }
+    title,copy,meta=stages.get(active,stages["upload"])
+    keys=["upload","trial_balance","ai_review","statements","validation","reports"]
+    index=keys.index(active)+1 if active in keys else 1
+    st.markdown(f"<div class='phase6-status' role='status'><div class='phase6-status-main'><div class='phase6-status-eyebrow'>Step {index} of 6</div><div class='phase6-status-title'>{title}</div><div class='phase6-status-copy'>{copy}</div></div><div class='phase6-status-meta'><span class='phase6-status-dot' aria-hidden='true'></span>{meta}</div></div>",unsafe_allow_html=True)
+
+
+def v7_empty_state(title, copy, icon="✓"):
+    """Render a consistent, accessible empty state for workflow queues."""
+    st.markdown(f"<div class='phase6-empty' role='status'><div class='phase6-empty-icon' aria-hidden='true'>{icon}</div><div class='phase6-empty-title'>{title}</div><div class='phase6-empty-copy'>{copy}</div></div>",unsafe_allow_html=True)
 
 
 def v7_build_results(df):
@@ -2646,10 +2687,11 @@ def v7_workspace():
 
     if not st.session_state.get("prepared") or st.session_state.get("workspace_section") == "upload":
         v7_stepper("upload")
+        v7_workspace_status("upload")
         existing_source = st.session_state.get("uploaded_source_df")
         left,right=st.columns([1.7,1],gap="large")
         with left:
-            st.markdown("<div class='panel upload-panel'><div class='panel-title'>Upload your Trial Balance</div><div class='panel-copy'>Bring in an Excel, XLS or CSV file with Account, Debit and Credit columns.</div><div class='upload-zone'><div class='upload-zone-title'>Choose your source file</div><div class='upload-zone-copy'>Your data stays in this session until you reset the workspace.</div></div></div>",unsafe_allow_html=True)
+            st.markdown("<div class='panel upload-panel'><div class='panel-title'>Upload your Trial Balance</div><div class='panel-copy'>Bring in an Excel, XLS or CSV file with Account, Debit and Credit columns.</div><div class='upload-zone'><div class='upload-zone-title'>Choose your source file</div><div class='upload-zone-copy'>Your data stays in this session until you reset the workspace.</div><div class='upload-format-note'>Tip: keep one account per row and use clear Debit and Credit headers.</div></div></div>",unsafe_allow_html=True)
             if existing_source is not None:
                 st.info(f"A Trial Balance is already loaded ({len(existing_source):,} accounts). Remove it below if you want to upload a different file.")
                 if st.button("Remove loaded Trial Balance", key="v9_remove_loaded", use_container_width=True):
@@ -2693,9 +2735,9 @@ def v7_workspace():
                                     st.session_state["prepared"]=True
                                     st.session_state["workspace_section"]="trial_balance"
                                     st.rerun()
-                except Exception as e:
-                    st.error("Could not read this file. Please check the format and columns.")
-                    st.exception(e)
+                except Exception:
+                    st.error("Could not read this file. Please check that it is a valid Excel or CSV file with Account, Debit and Credit columns.")
+                    st.info("If the file opens normally in Excel, save a fresh copy and upload it again.")
         with right:
             v7_context_panel()
         st.markdown("<div class='section-title'>Before you continue</div><div class='section-copy'>Keep the upload clean and let Accountra handle classification and validation after the file is balanced.</div>",unsafe_allow_html=True)
@@ -2709,6 +2751,7 @@ def v7_workspace():
     nav=st.session_state.get("workspace_section","trial_balance")
     buttons=[("trial_balance","Trial Balance"),("ai_review","AI Review"),("statements","Financial Statements"),("validation","Validation"),("reports","Reports & Export")]
     v7_stepper(nav)
+    v7_workspace_status(nav)
     st.markdown("<div class='nav-help'>Workspace sections &middot; one view at a time</div>",unsafe_allow_html=True)
     cols=st.columns(len(buttons))
     for col,(key,label) in zip(cols,buttons):
@@ -2769,7 +2812,7 @@ def v7_render_ai_review(results_df):
     st.markdown(f"<div class='review-hero'><div><div class='review-hero-title'>Human review queue</div><div class='review-hero-copy'>{review_copy}</div></div><div class='review-count'>{len(review)}<small>open</small></div></div>",unsafe_allow_html=True)
     st.markdown("<div class='ai-card'><div class='ai-title'>Accountra Copilot</div><div class='ai-copy'>Review the exceptions below. Deterministic classifications are retained, while uncertain accounts remain visible for human confirmation.</div></div>",unsafe_allow_html=True)
     if not len(review):
-        st.success("No accounts currently require manual review.")
+        v7_empty_state("Review queue is clear", "No accounts currently require manual review. You can continue to Statements, then run Validation before exporting.")
         return
     st.dataframe(review[["Account","Nature","Classification","Confidence","Reason","Missing Information"]].assign(Confidence=lambda x:x["Confidence"].map(lambda v:f"{float(v)*100:.0f}%")),use_container_width=True,hide_index=True,height=380)
     selected=st.selectbox("Account to review",review["Account"].tolist(),key="v7_review_account")
@@ -2819,6 +2862,10 @@ def v7_render_validation(results_df,data):
         detail="Control check completed successfully." if ok else "Resolve this item before final export."
         check_html.append(f"<div class='check-card {state}'><strong>{label} · {name}</strong><span>{detail}</span></div>")
     st.markdown(f"<div class='validation-grid'>{''.join(check_html)}</div>",unsafe_allow_html=True)
+    if passed==len(checks):
+        st.markdown("<div class='phase6-next'><strong>Next:</strong> open Reports &amp; Export to download the Excel working paper and PDF statements.</div>",unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='phase6-next'><strong>Next:</strong> use the review details above to resolve each highlighted control before exporting.</div>",unsafe_allow_html=True)
     if data["pbt"]<-.01 and data["tax_expense"]>.01: st.warning("PBT is negative while Tax Expense is present. Review the tax treatment before filing.")
 
 
