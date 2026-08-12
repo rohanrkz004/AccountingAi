@@ -45,11 +45,12 @@ from reportlab.platypus import (
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = BASE_DIR / "assets" / "accountra_mark.png"
 CREATOR_NAME = "Rohan A."
+DEFAULT_GOOGLE_FORM_URL = "https://forms.gle/PwC4ehS4GzVDkDr4A"
 try:
     _configured_google_form_url = st.secrets.get("ACCOUNTRA_GOOGLE_FORM_URL", "")
 except Exception:
     _configured_google_form_url = ""
-GOOGLE_FORM_URL = str(_configured_google_form_url or os.getenv("ACCOUNTRA_GOOGLE_FORM_URL", "")).strip()
+GOOGLE_FORM_URL = str(_configured_google_form_url or os.getenv("ACCOUNTRA_GOOGLE_FORM_URL", "") or DEFAULT_GOOGLE_FORM_URL).strip()
 
 
 def export_widget_key(kind):
