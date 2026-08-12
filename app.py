@@ -2756,6 +2756,104 @@ def v7_render_reports(data):
     with c2: st.download_button("Download PDF financial statements",pdf,f"{safe}_Financial_Statements.pdf",mime="application/pdf",use_container_width=True,key="v7_pdf")
 
 
+
+# =========================================================
+# ACCOUNTRA — FORCE LIGHT UI ON ALL DEVICES
+# =========================================================
+# Keep the product visually consistent even when the user's
+# OS/browser prefers dark mode. A future dark theme can be
+# introduced intentionally instead of inheriting Streamlit's theme.
+st.markdown(
+    """
+    <style>
+    :root, html, body {
+        color-scheme: light !important;
+    }
+
+    html[data-theme="dark"],
+    html[data-theme="light"] {
+        color-scheme: light !important;
+    }
+
+    .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"],
+    .main,
+    .block-container {
+        background: #f5f7fb !important;
+        color: #111827 !important;
+    }
+
+    /* Prevent Streamlit/BaseWeb controls from inheriting the device's
+       dark color scheme on laptops and phones. */
+    input,
+    textarea,
+    button,
+    select,
+    [role="combobox"],
+    [data-baseweb="input"],
+    [data-baseweb="select"],
+    [data-baseweb="textarea"] {
+        color-scheme: light !important;
+    }
+
+    .stTextInput input,
+    .stTextArea textarea,
+    .stNumberInput input,
+    .stDateInput input,
+    [data-baseweb="input"] input,
+    [data-baseweb="textarea"] textarea {
+        background: #f8fafc !important;
+        color: #111827 !important;
+        caret-color: #111827 !important;
+    }
+
+    [data-baseweb="select"] > div,
+    [data-baseweb="input"] > div,
+    [data-baseweb="textarea"] > div {
+        background: #f8fafc !important;
+        color: #111827 !important;
+    }
+
+    [data-baseweb="select"] *,
+    [data-baseweb="input"] *,
+    [data-baseweb="textarea"] * {
+        color: #111827 !important;
+    }
+
+    /* Streamlit metric values and common text containers stay readable. */
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricDelta"],
+    [data-testid="stCaptionContainer"],
+    [data-testid="stMarkdownContainer"] {
+        color: #111827;
+    }
+
+    /* Keep tables/data grids from inheriting a dark browser palette. */
+    [data-testid="stDataFrame"],
+    [data-testid="stTable"] {
+        color-scheme: light !important;
+    }
+
+    /* Mobile readability: give financial figures and controls more room. */
+    @media (max-width: 700px) {
+        .main .block-container {
+            padding: 1rem 1rem 3rem !important;
+        }
+        .kpi-value { font-size: 2.15rem !important; }
+        .kpi-label { font-size: 1rem !important; }
+        .workspace-title { font-size: 1.85rem !important; }
+        .panel-title { font-size: 1.18rem !important; }
+        .panel-copy, .feature-copy, .info-card span { font-size: 1rem !important; }
+        .stButton button, .stDownloadButton button { min-height: 48px !important; font-size: 1rem !important; }
+        .stTextInput input, .stTextArea textarea, .stNumberInput input, .stDateInput input { font-size: 1rem !important; min-height: 48px !important; }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # =========================================================
 # ROUTE
 # =========================================================
