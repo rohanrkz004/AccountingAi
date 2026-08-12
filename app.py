@@ -730,6 +730,28 @@ def classify_account(account, debit=0, credit=0):
             "Opening inventory is included in determining the period's cost of goods consumed/sold.",
         )
 
+    if (
+        any(x in name for x in [
+            "inventory -",
+            "inventory –",
+            "raw material in transit",
+            "finished goods in transit",
+            "packing material inventory",
+            "spare parts inventory",
+            "consumable stores",
+            "fuel inventory",
+            "office supplies inventory",
+            "work in progress",
+        ])
+        or ("inventory" in name and not any(x in name for x in ["write-down", "write down", "writedown", "provision"]))
+    ):
+        return make_result(
+            "Asset",
+            "Inventories",
+            "Balance Sheet",
+            "The account represents stock, stores, work in progress or another inventory balance.",
+        )
+
     # -----------------------------------------------------
     # CONTRA / ADJUSTMENT TERMS THAT MUST BE REVIEWED
     # -----------------------------------------------------
@@ -806,6 +828,70 @@ def classify_account(account, debit=0, credit=0):
             "Other Current Liabilities",
             "Balance Sheet",
             "An amount received before the related goods or services are delivered represents an obligation.",
+        )
+
+    if any(x in name for x in [
+        "employee advance",
+        "employee advances",
+        "travel advance",
+        "travel advances",
+        "loan to employee",
+        "loans to employee",
+        "loan to employees",
+        "loans to employees",
+        "staff advance",
+        "staff advances",
+    ]):
+        return make_result(
+            "Asset",
+            "Other Current Assets",
+            "Balance Sheet",
+            "Advances or loans made to employees are receivables/current assets.",
+        )
+
+    if any(x in name for x in [
+        "intercompany receivable",
+        "inter company receivable",
+        "due from group company",
+        "due from associate",
+    ]):
+        return make_result(
+            "Asset",
+            "Other Current Assets",
+            "Balance Sheet",
+            "Amounts due from group or related entities are other current receivables in this model.",
+        )
+
+    if any(x in name for x in [
+        "intercompany payable",
+        "inter company payable",
+        "due to group company",
+        "due to associate",
+        "contract liability",
+        "contract liabilities",
+        "labour welfare fund payable",
+        "labor welfare fund payable",
+        "pf employer contribution payable",
+        "esi employer contribution payable",
+    ]):
+        return make_result(
+            "Liability",
+            "Other Current Liabilities",
+            "Balance Sheet",
+            "Amounts owed to group entities, employees/statutory funds or customers are other current liabilities.",
+        )
+
+    if any(x in name for x in [
+        "allowance for doubtful debts",
+        "allowance for doubtful debt",
+        "provision for doubtful debts",
+        "provision for doubtful debt",
+    ]):
+        return make_result(
+            "Asset",
+            "Other Current Assets",
+            "Balance Sheet",
+            "A receivables allowance is presented with the related current receivable balance in this model.",
         )
 
     if any(x in name for x in [
@@ -905,6 +991,9 @@ def classify_account(account, debit=0, credit=0):
         "income tax receivable",
         "advance income tax",
         "advance tax",
+        "vat receivable",
+        "refund receivable",
+        "insurance claim receivable",
     ]):
         return make_result(
             "Asset",
@@ -956,6 +1045,8 @@ def classify_account(account, debit=0, credit=0):
         "creditors",
         "supplier payable",
         "supplier payables",
+        "bills payable",
+        "bill payable",
     ]):
         return make_result(
             "Liability",
@@ -967,6 +1058,37 @@ def classify_account(account, debit=0, credit=0):
     # -----------------------------------------------------
     # BORROWINGS — SPECIFIC TERMS FIRST
     # -----------------------------------------------------
+    if any(x in name for x in [
+        "interest on loan",
+        "interest on loans",
+        "interest on bank loan",
+        "interest on borrowing",
+        "interest on borrowings",
+        "interest on debenture",
+        "interest on debentures",
+    ]):
+        return make_result(
+            "Expense",
+            "Finance Costs",
+            "Profit & Loss",
+            "Interest charged on loans, borrowings or debentures is a finance cost, not the borrowing principal.",
+        )
+
+    if any(x in name for x in [
+        "long term bank loan",
+        "long-term bank loan",
+        "long term bank borrowing",
+        "long-term bank borrowing",
+        "non current bank loan",
+        "non-current bank loan",
+    ]) or re.search(r"\b(?:long[- ]term|non[- ]current)\b.*\b(?:loan|borrowing|borrowings|debenture|debentures)\b", name):
+        return make_result(
+            "Liability",
+            "Non-current Borrowings",
+            "Balance Sheet",
+            "The wording indicates a non-current/long-term borrowing even when the lender appears between the term and loan description.",
+        )
+
     if any(x in name for x in [
         "bank overdraft",
         "bank overdrafts",
@@ -1107,6 +1229,30 @@ def classify_account(account, debit=0, credit=0):
         )
 
     if any(x in name for x in [
+        "security deposit received",
+        "security deposits received",
+        "lease liability",
+        "lease liabilities",
+    ]):
+        return make_result(
+            "Liability",
+            "Other Non-current Liabilities",
+            "Balance Sheet",
+            "A deposit received or lease liability represents an obligation and is grouped with other non-current liabilities in this model.",
+        )
+
+    if any(x in name for x in [
+        "preliminary expense",
+        "preliminary expenses",
+    ]):
+        return make_result(
+            "Asset",
+            "Other Non-current Assets",
+            "Balance Sheet",
+            "Preliminary expenses are treated as a non-current deferred asset in this model.",
+        )
+
+    if any(x in name for x in [
         "security deposit",
         "security deposits",
         "deposit with",
@@ -1186,6 +1332,8 @@ def classify_account(account, debit=0, credit=0):
         "software",
         "intangible asset",
         "intangible assets",
+        "website development cost",
+        "website development costs",
     ]):
         return make_result(
             "Asset",
@@ -1212,6 +1360,13 @@ def classify_account(account, debit=0, credit=0):
         "computer equipment",
         "computer",
         "factory building",
+        "leasehold improvement",
+        "leasehold improvements",
+        "electrical installation",
+        "generator",
+        "forklift",
+        "forklifts",
+        "office renovation",
     ]):
         return make_result(
             "Asset",
@@ -1240,6 +1395,7 @@ def classify_account(account, debit=0, credit=0):
         "preference share capital",
         "paid up capital",
         "paid-up capital",
+        "share application money",
     ]):
         return make_result(
             "Equity",
@@ -1260,6 +1416,9 @@ def classify_account(account, debit=0, credit=0):
         "reserve fund",
         "reserves and surplus",
         "other equity",
+        "employee stock option reserve",
+        "revaluation reserve",
+        "foreign currency translation reserve",
     ]):
         return make_result(
             "Equity",
@@ -1291,6 +1450,10 @@ def classify_account(account, debit=0, credit=0):
         "consultancy income",
         "professional income",
         "operating revenue",
+        "other operating income",
+        "installation revenue",
+        "maintenance revenue",
+        "consulting revenue",
     ]):
         return make_result(
             "Income",
@@ -1307,11 +1470,13 @@ def classify_account(account, debit=0, credit=0):
         "rental income",
         "profit on sale of asset",
         "gain on sale of asset",
+        "gain on sale of fixed asset",
         "commission received",
         "commission income",
         "discount received",
         "other income",
         "miscellaneous income",
+        "royalty income",
         "foreign exchange gain",
         "forex gain",
     ]):
@@ -1338,6 +1503,11 @@ def classify_account(account, debit=0, credit=0):
         "provident fund expense",
         "pf expense",
         "esi expense",
+        "direct labour",
+        "direct labor",
+        "recruitment expense",
+        "training expense",
+        "employee medical expense",
     ]):
         return make_result(
             "Expense",
@@ -1408,6 +1578,9 @@ def classify_account(account, debit=0, credit=0):
         "materials consumed",
         "raw material consumed",
         "raw materials consumed",
+        "import duty",
+        "factory consumables",
+        "subcontracting charges",
     ]):
         return make_result(
             "Expense",
@@ -1421,9 +1594,11 @@ def classify_account(account, debit=0, credit=0):
         "rent",
         "electricity",
         "power charges",
+        "factory power",
         "water charges",
         "telephone expense",
         "internet expense",
+        "telephone and internet",
         "repairs",
         "repair expense",
         "advertising",
@@ -1431,6 +1606,7 @@ def classify_account(account, debit=0, credit=0):
         "professional fees",
         "audit fees",
         "legal fees",
+        "legal expenses",
         "printing",
         "stationery",
         "office expenses",
@@ -1448,6 +1624,19 @@ def classify_account(account, debit=0, credit=0):
         "discount allowed",
         "foreign exchange loss",
         "forex loss",
+        "carriage outward",
+        "loss on sale of asset",
+        "factory insurance",
+        "factory security",
+        "quality control expense",
+        "research and development expense",
+        "cloud hosting expense",
+        "logistics expense",
+        "business development expense",
+        "csr expense",
+        "loss on inventory write-down",
+        "loss on inventory write down",
+        "loss on inventory writedown",
     ]):
         return make_result(
             "Expense",
