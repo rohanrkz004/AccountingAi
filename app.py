@@ -1851,6 +1851,12 @@ div[data-baseweb="input"] > div, div[data-baseweb="select"] > div, div[data-base
 [data-testid="stFileUploaderDropzone"] { border-radius:14px !important; border:1.5px dashed #c8caf5 !important; background:#fafaff !important; }
 [data-testid="stDataFrame"] { border-radius:14px !important; }
 
+
+/* V6 workspace polish */
+.workspace-bar{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 1rem;padding:.5rem .65rem;border:1px solid var(--acc-line);background:var(--acc-surface);border-radius:14px;box-shadow:0 5px 20px rgba(15,23,42,.035)}
+.workspace-left{display:flex;align-items:center;gap:.6rem;min-width:0}.workspace-back{color:var(--acc-primary);font-size:.74rem;font-weight:850}.workspace-current{color:var(--acc-muted);font-size:.71rem;font-weight:750;padding-left:.6rem;border-left:1px solid var(--acc-line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.workspace-meta{color:var(--acc-muted);font-size:.66rem;font-weight:700;white-space:nowrap}
+.dashboard-hero{position:relative;overflow:hidden;border:1px solid #dfe2ff;border-radius:24px;padding:1.65rem 1.7rem;background:radial-gradient(circle at 92% 12%,rgba(22,166,182,.14),transparent 22%),radial-gradient(circle at 8% 100%,rgba(91,92,226,.11),transparent 28%),linear-gradient(135deg,var(--acc-surface),#f3f5ff);box-shadow:var(--acc-shadow);margin-bottom:1rem}.dashboard-hero .page-title{max-width:900px}.dashboard-actions{display:flex;flex-wrap:wrap;gap:.55rem;margin-top:1.1rem}.empty-kpi{min-height:105px;display:flex;flex-direction:column;justify-content:space-between}.empty-kpi .kpi-value{color:#8b93a6}.start-card{border:1px solid var(--acc-line);border-radius:20px;background:var(--acc-surface);box-shadow:var(--acc-shadow);overflow:hidden}.start-card-head{padding:1.15rem 1.25rem;border-bottom:1px solid var(--acc-line)}.start-card-body{padding:1.15rem 1.25rem}.upload-hint{margin-top:.55rem;color:var(--acc-muted);font-size:.72rem;line-height:1.5}.status-banner{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.8rem 1rem;border:1px solid var(--acc-line);border-radius:14px;background:var(--acc-surface)}.status-banner-title{color:var(--acc-ink);font-size:.78rem;font-weight:850}.status-banner-copy{color:var(--acc-muted);font-size:.68rem;margin-top:.12rem}
+@media (max-width:760px){.workspace-bar{align-items:flex-start}.workspace-meta{display:none}.dashboard-hero{padding:1.25rem;border-radius:18px}.dashboard-actions{display:grid;grid-template-columns:1fr 1fr}}
 @media (max-width:1050px) {
   .kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
@@ -1916,6 +1922,15 @@ def nav_button(key, label):
 
 
 def page_header(eyebrow, title, subtitle=""):
+    current = st.session_state.get("app_page", "home")
+    if current != "home":
+        left, right = st.columns([1, 5])
+        with left:
+            if st.button("← Dashboard", key=f"back_dashboard_{current}", use_container_width=True):
+                st.session_state["app_page"] = "home"
+                st.rerun()
+        with right:
+            st.markdown(f'<div class="workspace-bar"><div class="workspace-left"><span class="workspace-back">Workspace</span><span class="workspace-current">{html_escape(title)}</span></div><div class="workspace-meta">{html_escape(st.session_state.get("company_name") or "Your company")}</div></div>', unsafe_allow_html=True)
     st.markdown(f'<div class="page-eyebrow">{html_escape(eyebrow)}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="page-title">{html_escape(title)}</div>', unsafe_allow_html=True)
     if subtitle:
@@ -2203,45 +2218,49 @@ render_topbar()
 # -----------------------------
 
 def render_home():
-    prepared=bool(st.session_state.get("prepared") and st.session_state.get("results"))
+    prepared = bool(st.session_state.get("prepared") and st.session_state.get("results"))
     if not prepared:
-        st.markdown('''<div class="hero"><div class="hero-content"><div class="page-eyebrow">AI FINANCIAL WORKSPACE</div><div class="landing-title">From Trial Balance to <span>decision-ready statements.</span></div><div class="landing-copy">Upload your Trial Balance, classify accounts with deterministic rules plus AI fallback, review exceptions, validate the numbers and generate professional financial statements — all in one workspace.</div></div></div>''', unsafe_allow_html=True)
-        a,b,c=st.columns(3)
-        for col,title,copy in [(a,"1 · Upload","Bring your Excel or CSV Trial Balance into a clean workspace."),(b,"2 · Review","See classifications, confidence and exceptions before anything is final."),(c,"3 · Report","Generate Schedule III-style statements, validation and exports.")]:
-            with col: st.markdown(f'<div class="card"><div class="card-title">{title}</div><div class="card-caption">{copy}</div></div>',unsafe_allow_html=True)
-        st.markdown('<div class="section-head"><div><div class="section-title">Start your workspace</div><div class="section-caption">Nothing is processed until you choose a file and prepare the statements.</div></div></div>',unsafe_allow_html=True)
+        st.markdown('''<div class="dashboard-hero"><div class="page-eyebrow">ACCOUNTRA INTELLIGENCE · DASHBOARD</div><div class="page-title">Your accounting workspace, built for clarity.</div><div class="page-subtitle">Bring in a Trial Balance, review the AI-assisted classifications, validate the numbers and generate reporting-ready statements from one command center.</div><div class="dashboard-actions"><span class="status-pill status-good">Secure workspace</span><span class="status-pill">Excel · XLS · CSV</span><span class="status-pill">Schedule III workflow</span></div></div>''', unsafe_allow_html=True)
+        st.markdown('<div class="section-head"><div><div class="section-title">Workspace at a glance</div><div class="section-caption">Start with your Trial Balance. The rest of the workspace unlocks after preparation.</div></div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="kpi-grid">' + ''.join([
+            '<div class="kpi empty-kpi"><div class="kpi-label">Total Assets</div><div class="kpi-value">—</div><div class="kpi-meta">Waiting for Trial Balance</div></div>',
+            '<div class="kpi empty-kpi"><div class="kpi-label">Revenue</div><div class="kpi-value">—</div><div class="kpi-meta">Waiting for preparation</div></div>',
+            '<div class="kpi empty-kpi"><div class="kpi-label">Net Profit</div><div class="kpi-value">—</div><div class="kpi-meta">Calculated after review</div></div>',
+            '<div class="kpi empty-kpi"><div class="kpi-label">Accounts</div><div class="kpi-value">—</div><div class="kpi-meta">No file loaded</div></div>',
+            '<div class="kpi empty-kpi"><div class="kpi-label">Validation</div><div class="kpi-value">Ready</div><div class="kpi-meta">Upload to begin</div></div>'
+        ]) + '</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-head"><div><div class="section-title">Start a new workspace</div><div class="section-caption">Your data stays in this session until you reset the workspace.</div></div></div>', unsafe_allow_html=True)
         render_input_panel()
         return
-    results_df=apply_overrides(pd.DataFrame(st.session_state["results"]))
-    st.session_state["results"]=results_df.to_dict("records")
-    fin=compute_financials(results_df)
-    tb_debit=float(results_df["Debit"].sum()); tb_credit=float(results_df["Credit"].sum()); diff=tb_debit-tb_credit
-    review=int(results_df["Ambiguous"].fillna(True).sum())
-    st.markdown(f'<div class="hero"><div class="hero-content"><div class="page-eyebrow">ACCOUNTRA INTELLIGENCE · OVERVIEW</div><div class="page-title">Good afternoon, {html_escape(st.session_state["company_name"])}.</div><div class="page-subtitle">Your books are prepared for {html_escape(financial_year_label(st.session_state["reporting_date"]))}. Here is what deserves your attention.</div></div></div>',unsafe_allow_html=True)
-    status="Balanced" if abs(diff)<.01 else "Needs attention"
-    status_cls="status-good" if abs(diff)<.01 else "status-bad"
-    st.markdown('<div class="kpi-grid">'+''.join([metric_card("Total Assets",money(fin["total_assets"]),"Balance Sheet"),metric_card("Total Liabilities",money(fin["total_liabilities"]),"Balance Sheet"),metric_card("Total Equity",money(fin["total_equity"]),"Before current profit"),metric_card("Net Profit",money(fin["profit"]),"Profit for the period"),metric_card("Trial Balance",status,f"{review} review item(s)")])+"</div>",unsafe_allow_html=True)
-    left,right=st.columns([1.55,1])
+
+    results_df = apply_overrides(pd.DataFrame(st.session_state["results"]))
+    st.session_state["results"] = results_df.to_dict("records")
+    fin = compute_financials(results_df)
+    tb_debit = float(results_df["Debit"].sum()); tb_credit = float(results_df["Credit"].sum()); diff = tb_debit - tb_credit
+    review = int(results_df["Ambiguous"].fillna(True).sum())
+    balanced = abs(diff) < .01; balance_ok = abs(fin["balance_difference"]) < .01
+    st.markdown(f'''<div class="dashboard-hero"><div class="page-eyebrow">ACCOUNTRA INTELLIGENCE · DASHBOARD</div><div class="page-title">Good afternoon, {html_escape(st.session_state["company_name"])}.</div><div class="page-subtitle">Your books are prepared for {html_escape(financial_year_label(st.session_state["reporting_date"]))}. Here is the current financial picture and what deserves attention.</div></div>''', unsafe_allow_html=True)
+    st.markdown('<div class="kpi-grid">' + ''.join([
+        metric_card("Total Assets", money(fin["total_assets"]), "Balance Sheet"), metric_card("Total Liabilities", money(fin["total_liabilities"]), "Balance Sheet"), metric_card("Total Equity", money(fin["total_equity"]), "Before current profit"), metric_card("Net Profit", money(fin["profit"]), "Profit for the period"), metric_card("Trial Balance", "Balanced" if balanced else "Needs attention", f"{len(results_df):,} accounts · {review} review item(s)")
+    ]) + '</div>', unsafe_allow_html=True)
+    left, right = st.columns([1.55, 1])
     with left:
-        st.markdown('<div class="card"><div class="card-title">Financial overview</div><div class="card-caption">Current-period composition from the validated classifications.</div>',unsafe_allow_html=True)
+        st.markdown('<div class="card"><div class="card-title">Financial overview</div><div class="card-caption">Current-period composition from the validated classifications.</div>', unsafe_allow_html=True)
         values=[("Revenue",fin["total_revenue"]),("Expenses",fin["total_expenses"]),("Assets",fin["total_assets"]),("Liabilities",fin["total_liabilities"]),("Equity",fin["total_equity"])]
         maxv=max([abs(v) for _,v in values] or [1])
-        bars=''.join([f'<div style="display:grid;grid-template-columns:110px 1fr 105px;gap:.7rem;align-items:center;margin:.75rem 0"><div style="font-size:.72rem;color:var(--acc-muted);font-weight:750">{html_escape(k)}</div><div style="height:9px;background:#eceef5;border-radius:99px;overflow:hidden"><div style="height:100%;width:{abs(v)/maxv*100:.1f}%;background:linear-gradient(90deg,#5b5ce2,#16a6b6);border-radius:99px"></div></div><div style="text-align:right;font-size:.72rem;font-weight:800;color:var(--acc-ink)">{html_escape(money(v))}</div></div>' for k,v in values])
+        bars=''.join([f'<div style="display:grid;grid-template-columns:100px 1fr 105px;gap:.7rem;align-items:center;margin:.8rem 0"><div style="font-size:.72rem;color:var(--acc-muted);font-weight:750">{html_escape(k)}</div><div style="height:9px;background:var(--acc-line);border-radius:99px;overflow:hidden"><div style="height:100%;width:{abs(v)/maxv*100:.1f}%;background:linear-gradient(90deg,var(--acc-primary),var(--acc-cyan));border-radius:99px"></div></div><div style="text-align:right;font-size:.72rem;font-weight:800;color:var(--acc-ink)">{html_escape(money(v))}</div></div>' for k,v in values])
         st.markdown(bars+'</div>',unsafe_allow_html=True)
     with right:
         st.markdown('<div class="card"><div class="card-title">Accountra Intelligence</div><div class="card-caption">What deserves your attention right now.</div>',unsafe_allow_html=True)
-        if abs(diff)<.01: st.markdown(insight_card("Trial Balance is balanced","Debit and credit totals agree. The core input check passed.","good"),unsafe_allow_html=True)
-        else: st.markdown(insight_card("Trial Balance needs review",f"The difference is {money(diff)}. Review the uploaded ledger before relying on statements.","danger"),unsafe_allow_html=True)
-        if review: st.markdown(insight_card(f"{review} account(s) need review","Open AI Review to inspect confidence, reasons and manual overrides.","warn"),unsafe_allow_html=True)
-        else: st.markdown(insight_card("Classification review is clear","No accounts are currently flagged for manual review.","good"),unsafe_allow_html=True)
-        if abs(fin["balance_difference"])<.01: st.markdown(insight_card("Balance Sheet tallies","Assets equal equity and liabilities after the current-period profit bridge.","good"),unsafe_allow_html=True)
-        else: st.markdown(insight_card("Balance Sheet does not tally",f"Difference: {money(fin['balance_difference'])}. Review classifications and equity treatment.","danger"),unsafe_allow_html=True)
+        st.markdown(insight_card("Trial Balance is balanced" if balanced else "Trial Balance needs review", "Debit and credit totals agree." if balanced else f"Difference: {money(diff)}. Review the source ledger before relying on statements.", "good" if balanced else "danger"), unsafe_allow_html=True)
+        st.markdown(insight_card(f"{review} account(s) need review" if review else "Classification review is clear", "Open AI Review to inspect confidence and apply overrides." if review else "No accounts are currently flagged for manual review.", "warn" if review else "good"), unsafe_allow_html=True)
+        st.markdown(insight_card("Balance Sheet tallies" if balance_ok else "Balance Sheet needs attention", "Assets equal equity and liabilities." if balance_ok else f"Difference: {money(fin['balance_difference'])}.", "good" if balance_ok else "danger"), unsafe_allow_html=True)
         st.markdown('</div>',unsafe_allow_html=True)
     st.markdown('<div class="section-head"><div><div class="section-title">Quick actions</div><div class="section-caption">Jump directly into the part of the workflow you need.</div></div></div>',unsafe_allow_html=True)
     qa=st.columns(4)
-    for col,key,title,sub in [(qa[0],"trial_balance","Trial Balance","Search and inspect accounts"),(qa[1],"ai_review","AI Review","Resolve exceptions"),(qa[2],"statements","Statements","Review P&L and Balance Sheet"),(qa[3],"reports","Reports","Export working papers")]:
+    for col,key,title,sub in [(qa[0],"trial_balance","Trial Balance","Inspect accounts"),(qa[1],"ai_review","AI Review","Resolve exceptions"),(qa[2],"statements","Statements","Review reports"),(qa[3],"reports","Reports","Export deliverables")]:
         with col:
-            if st.button(title,key=f"qa_{key}",use_container_width=True): st.session_state["app_page"]=key; st.rerun()
+            if st.button(title,key=f"qa_{key}_v6",use_container_width=True): st.session_state["app_page"]=key; st.rerun()
             st.caption(sub)
 
 # -----------------------------
@@ -2249,18 +2268,18 @@ def render_home():
 # -----------------------------
 
 def render_input_panel():
-    left,right=st.columns([1.5,1])
+    left, right = st.columns([1.45, 1])
     with left:
-        st.markdown('<div class="card"><div class="card-title">Upload your Trial Balance</div><div class="card-caption">Excel, XLS or CSV · Account, Debit and Credit columns.</div>',unsafe_allow_html=True)
+        st.markdown('<div class="start-card"><div class="start-card-head"><div class="card-title">Upload your Trial Balance</div><div class="card-caption">Excel, XLS or CSV · Account, Debit and Credit columns.</div></div><div class="start-card-body">', unsafe_allow_html=True)
         if "reset_nonce" not in st.session_state: st.session_state["reset_nonce"]=0
-        uploaded=st.file_uploader("Choose Trial Balance",type=["xlsx","xls","csv"],key=f"trial_balance_upload_v5_{st.session_state['reset_nonce']}",label_visibility="collapsed")
-        st.markdown('</div>',unsafe_allow_html=True)
+        uploaded=st.file_uploader("Choose Trial Balance",type=["xlsx","xls","csv"],key=f"trial_balance_upload_v6_{st.session_state['reset_nonce']}",label_visibility="collapsed")
+        st.markdown('<div class="upload-hint">Tip: use a clean three-column Trial Balance. Totals are checked before classification begins.</div></div></div>',unsafe_allow_html=True)
     with right:
-        st.markdown('<div class="card"><div class="card-title">Report context</div><div class="card-caption">These details flow into the financial statements and exports.</div>',unsafe_allow_html=True)
+        st.markdown('<div class="start-card"><div class="start-card-head"><div class="card-title">Report context</div><div class="card-caption">These details flow into statements and exports.</div></div><div class="start-card-body">',unsafe_allow_html=True)
         st.text_input("Company / Entity Name",key="company_name")
         st.text_input("CIN / Registration No. (optional)",key="cin")
         st.date_input("Reporting Date",key="reporting_date")
-        st.markdown('</div>',unsafe_allow_html=True)
+        st.markdown('</div></div>',unsafe_allow_html=True)
     if uploaded:
         df,error=normalize_tb(uploaded)
         if error: st.error(error); return
@@ -2269,21 +2288,19 @@ def render_input_panel():
         if st.session_state.get("file_token")!=token:
             st.session_state["file_token"]=token; st.session_state["prepared"]=False; st.session_state.pop("results",None); st.session_state.pop("comparative_results",None)
         st.session_state["source_df"]=df.to_dict("records")
-        st.success(f"{uploaded.name} loaded · {len(df):,} accounts")
-        c1,c2,c3=st.columns(3)
-        c1.metric("Accounts",f"{len(df):,}"); c2.metric("Debit",money(df["Debit"].sum())); c3.metric("Credit",money(df["Credit"].sum()))
-        diff=float(df["Debit"].sum()-df["Credit"].sum())
-        if abs(diff)<.01: st.success("Trial Balance is balanced.")
-        else: st.error(f"Trial Balance is not balanced · Difference {money(diff)}")
+        diff=float(df["Debit"].sum()-df["Credit"].sum()); balanced=abs(diff)<.01
+        status_cls="status-good" if balanced else "status-bad"; status_text="Balanced" if balanced else "Needs attention"
+        st.markdown(f'<div class="status-banner" style="margin-top:.8rem"><div><div class="status-banner-title">{html_escape(uploaded.name)}</div><div class="status-banner-copy">{len(df):,} accounts loaded · {money(df["Debit"].sum())} debit · {money(df["Credit"].sum())} credit</div></div><span class="status-pill {status_cls}">{status_text}</span></div>',unsafe_allow_html=True)
+        if not balanced: st.error(f"Trial Balance is not balanced · Difference {money(diff)}")
         with st.expander("Preview uploaded accounts",expanded=False): st.dataframe(df,use_container_width=True,hide_index=True)
-        comparative=st.file_uploader("Previous-year Trial Balance (optional)",type=["xlsx","xls","csv"],key=f"comparative_trial_balance_upload_v5_{st.session_state['reset_nonce']}")
+        comparative=st.file_uploader("Previous-year Trial Balance (optional)",type=["xlsx","xls","csv"],key=f"comparative_trial_balance_upload_v6_{st.session_state['reset_nonce']}")
         comp_df=None
         if comparative:
-            comp_df,_=normalize_tb(comparative)
-            if comp_df is not None: st.session_state["comparative_source_df"]=comp_df.to_dict("records")
-        can_prepare=abs(diff)<.01
-        if st.button("Prepare financial workspace",type="primary",use_container_width=True,key="prepare_v5"):
-            if not can_prepare: st.error("Cannot prepare financial statements until the Trial Balance balances.")
+            comp_df,comp_error=normalize_tb(comparative)
+            if comp_error: st.error(comp_error)
+            elif comp_df is not None: st.session_state["comparative_source_df"]=comp_df.to_dict("records")
+        if st.button("Prepare financial workspace",type="primary",use_container_width=True,key="prepare_v6"):
+            if not balanced: st.error("Cannot prepare financial statements until the Trial Balance balances.")
             else:
                 with st.spinner("Preparing your accounting workspace…"):
                     res=prepare_classifications(df,comp_df)
