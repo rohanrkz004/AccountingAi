@@ -2396,17 +2396,20 @@ st.markdown(
 # SEO LANDING PAGE — TRIAL BALANCE TO FINANCIAL STATEMENTS
 # =========================================================
 
-if st.query_params.get("seo") == "trial-balance-to-financial-statements":
+if st.query_params.get("seo") in {
+    "trial-balance-to-financial-statements",
+    "trial-balance-to-final-accounts",
+}:
     st.markdown(
         """
         <div class="landing-shell">
             <div class="landing-hero">
                 <div class="landing-eyebrow">📑 TRIAL BALANCE TO FINANCIAL STATEMENTS</div>
-                <div class="landing-title">Trial Balance to Financial Statements</div>
+                <div class="landing-title">Trial Balance to Final Accounts Converter</div>
                 <div class="landing-subtitle">
-                    Turn a structured Trial Balance into Schedule III-style Profit &amp; Loss
-                    and Balance Sheet statements with AI-assisted account classification,
-                    review flags, and validation checks.
+                    Convert an Excel or CSV Trial Balance into review-ready final accounts,
+                    including Profit &amp; Loss and Balance Sheet statements, with AI-assisted
+                    account classification, review flags, and validation checks.
                 </div>
             </div>
         </div>
@@ -2416,12 +2419,12 @@ if st.query_params.get("seo") == "trial-balance-to-financial-statements":
 
     seo_col1, seo_col2 = st.columns([1.15, 0.85], gap="large")
     with seo_col1:
-        st.markdown("## How Accountra converts a Trial Balance into financial statements")
+        st.markdown("## How Accountra converts a Trial Balance into final accounts")
         st.write(
             """Accountra starts with your Excel or CSV Trial Balance, checks that the
-            debit and credit totals are balanced, classifies accounts into financial
-            statement heads, lets you review ambiguous classifications, and prepares
-            Profit & Loss and Balance Sheet statements."""
+            debit and credit totals are balanced, classifies accounts into relevant
+            financial statement heads, lets you review ambiguous classifications, and
+            prepares final accounts with Profit & Loss and Balance Sheet statements."""
         )
 
         st.markdown("### The workflow")
@@ -2481,7 +2484,7 @@ if st.query_params.get("seo") == "trial-balance-to-financial-statements":
             financial statement exports are generated."""
         )
 
-    st.markdown("## Ready to turn your Trial Balance into financial statements?")
+    st.markdown("## Ready to turn your Trial Balance into final accounts?")
     if st.button("🚀 Start with a Trial Balance", type="primary", use_container_width=True, key="seo_tb_start"):
         st.query_params.clear()
         st.session_state["app_page"] = "workspace"
